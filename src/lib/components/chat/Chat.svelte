@@ -3052,6 +3052,17 @@
 						}}
 					/>
 
+					{#if generating}
+						<div
+							class="mx-4 mb-2 h-1.5 rounded-full overflow-hidden bg-gray-200/60 dark:bg-gray-800/70 border border-gray-300/40 dark:border-red-900/40"
+							aria-label="Response loading"
+						>
+							<div
+								class="h-full w-1/3 rounded-full bg-linear-to-r from-red-500 via-rose-400 to-red-600 loadbar-fill"
+							></div>
+						</div>
+					{/if}
+
 					<div id="chat-pane" class="flex flex-col flex-auto z-10 w-full @container overflow-auto">
 						{#if ($settings?.landingPageMode === 'chat' && !$selectedFolder) || createMessagesList(history, history.currentId).length > 0}
 							<div
@@ -3248,6 +3259,23 @@
 </div>
 
 <style>
+	@keyframes loadbar-slide {
+		0% {
+			transform: translateX(-140%);
+		}
+		50% {
+			transform: translateX(80%);
+		}
+		100% {
+			transform: translateX(280%);
+		}
+	}
+
+	.loadbar-fill {
+		will-change: transform;
+		animation: loadbar-slide 1.2s ease-in-out infinite;
+	}
+
 	::-webkit-scrollbar {
 		height: 0.5rem;
 		width: 0.5rem;
