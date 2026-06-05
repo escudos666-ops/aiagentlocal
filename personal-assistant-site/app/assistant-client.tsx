@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Priority = "high" | "medium" | "low";
@@ -484,9 +485,12 @@ export default function AssistantClient({ displayName, email }: Props) {
             </section>
 
             <section className="overflow-hidden rounded-lg border border-[#d9ded8] bg-white">
-              <img
+              <Image
                 src="/assistant-visual.png"
                 alt="Assistant planning visual"
+                width={900}
+                height={520}
+                priority
                 className="h-44 w-full object-cover"
               />
               <div className="border-t border-[#d9ded8] p-4">
