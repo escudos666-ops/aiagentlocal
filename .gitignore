@@ -1,0 +1,41 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.secret
+secrets/
+
+# Runtime state and local data
+data/
+postgres-data/
+config/webui/cache/
+config/webui/vector_db/
+ollama/
+DockerDesktopWSL/
+browser-use-web-ui.zip
+ui_backup_*/
+
+# Databases and generated files
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.vhdx
+*.log
+*.zip
+*.bak
+*.bak*
+__pycache__/
+*.py[cod]
+config/webui/uploads/
+
+# Local command/output scratch files
+out.txt
+dir
+wsl
+
+# Dependencies and OS/editor noise
+node_modules/
+**/node_modules/
+.DS_Store
+Thumbs.db

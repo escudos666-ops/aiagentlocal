@@ -1,0 +1,134 @@
+agent:
+  name: "martin-pa"
+  version: "1.0.0"
+  description: "Martin's Personal Agent - Multi-agent orchestrator"
+  owner: "Martin"
+
+services:
+  ollama:
+    url: "http://ollama:11434"
+    model: "neural-chat:latest"
+  
+  openwebui:
+    url: "http://openwebui:3000"
+    api_key: "${OPENWEBUI_API_KEY}"
+  
+  n8n:
+    url: "http://n8n:5678"
+    webhook_path: "/webhook/browser-task"
+  
+  browser_use:
+    url: "http://browser-use-webui:7788"
+  
+  postgres:
+    url: "postgresql://admin:[REDACTED]@postgres:5432/agentdb"
+    pool_size: 10
+  
+  redis:
+    url: "redis://redis:6379"
+    db: 0
+  
+  minio:
+    url: "http://minio:9000"
+    bucket: "agent-data"
+  
+  chroma:
+    url: "http://chroma:8000"
+    collection: "martin-memory"
+  
+  waha:
+    url: "http://waha:3000"
+    api_path: "/api"
+
+sub_agents:
+  messaging:
+    name: "Messaging Agent"
+    port: 8001
+    container: "pa-agent-messaging"
+    description: "Handles WhatsApp and messaging"
+  
+  memory:
+    name: "Memory Agent"
+    port: 8002
+    container: "pa-agent-memory"
+    description: "Manages notes, history, and memory systems"
+  
+  task:
+    name: "Task Agent"
+    port: 8003
+    container: "pa-agent-task"
+    description: "Handles task creation and management"
+  
+  browser:
+    name: "Browser Agent"
+    port: 8004
+    container: "pa-agent-browser"
+    description: "Automates browser tasks and web interactions"
+  
+  writing:
+    name: "Writing Agent"
+    port: 8005
+    container: "pa-agent-writing"
+    description: "Handles content creation and writing tasks"
+
+tools:
+  messaging:
+    - name: "send_whatsapp"
+      description: "Send a WhatsApp message"
+      parameters:
+        phone:
+          type: "string"
+          description: "Phone number with country code"
+        message:
+          type: "string"
+          description: "Message content"
+    
+    - name: "read_whatsapp"
+      description: "Read WhatsApp messages"
+      parameters:
+        chat_id:
+          type: "string"
+          description: "Chat ID to read from"
+  
+  memory:
+    - name: "save_note"
+      description: "Save a note to memory"
+      parameters:
+        title:
+          type: "string"
+        content:
+          type: "string"
+    
+    - name: "fetch_history"
+      description: "Fetch conversation history"
+      parameters:
+        limit:
+          type: "integer"
+          default: 10
+  
+  task:
+    - name: "create_task"
+      description: "Create a new task"
+      parameters:
+        title:
+          type: "string"
+        description:
+          type: "string"
+  
+  browser:
+    - name: "browse"
+      description: "Browse a URL and extract content"
+      parameters:
+        url:
+          type: "string"
+        action:
+          type: "string"
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false

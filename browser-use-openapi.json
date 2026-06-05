@@ -1,0 +1,78 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Browser Use API",
+    "description": "Execute browser automation tasks via n8n bridge",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://n8n:5678"
+    }
+  ],
+  "paths": {
+    "/webhook/browser-task": {
+      "post": {
+        "summary": "Execute a browser task",
+        "description": "Send a task to Browser-Use to execute in a real browser",
+        "operationId": "executeBrowserTask",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["task"],
+                "properties": {
+                  "task": {
+                    "type": "string",
+                    "description": "The browser task to execute (e.g., 'Go to google.com and search for docker')"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "Starting URL (optional)"
+                  },
+                  "timeout": {
+                    "type": "integer",
+                    "description": "Task timeout in milliseconds",
+                    "default": 30000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Task completed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "result": {
+                      "type": "object",
+                      "description": "Browser task result"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "500": {
+            "description": "Task execution failed"
+          }
+        }
+      }
+    }
+  }
+}

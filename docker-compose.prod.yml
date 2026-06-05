@@ -1,0 +1,82 @@
+# Production compose overrides - strict resource limits, proper networking
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+
+services:
+  postgres:
+    environment:
+      POSTGRES_INITDB_ARGS: "-c shared_buffers=256MB -c max_connections=100"
+    deploy:
+      resources:
+        limits:
+          cpus: '3'
+          memory: 3G
+        reservations:
+          cpus: '2'
+          memory: 2G
+
+  ollama:
+    # Production: Enable GPU and increase resources
+    gpus: all
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 16G
+        reservations:
+          cpus: '4'
+          memory: 8G
+
+  openwebui:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '3'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G
+
+  n8n:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  minio:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  redis:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  webui_preview:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M

@@ -1,0 +1,17 @@
+﻿services:
+  agentics-unified-ui:
+    image: nginx:alpine
+    container_name: agentics-unified-ui
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3010:80"
+    volumes:
+      - ./agentics-unified-ui/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./agentics-unified-ui/index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - agentnet
+
+networks:
+  agentnet:
+    external: true
+    name: agentics_agentnet

@@ -1,0 +1,145 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Martin's Personal Agent API",
+    "description": "OpenAPI spec for Martin's Personal Agent integrated with Open WebUI",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://pa-service:8000",
+      "description": "PA Service internal"
+    },
+    {
+      "url": "http://localhost:8000",
+      "description": "PA Service external"
+    }
+  ],
+  "paths": {
+    "/process": {
+      "post": {
+        "summary": "Process a command from Martin",
+        "description": "Send a command to the Personal Agent for processing",
+        "operationId": "processCommand",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["intent", "content"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "default": "command",
+                    "description": "Command type"
+                  },
+                  "intent": {
+                    "type": "string",
+                    "enum": ["message", "memory", "task", "browse", "write", "question"],
+                    "description": "Command intent (message, memory, task, browse, write, or question)"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Command content or message"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "description": "Optional metadata"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Command processed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "agent": {
+                      "type": "string"
+                    },
+                    "response": {
+                      "type": "string"
+                    },
+                    "timestamp": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "500": {
+            "description": "Processing error"
+          }
+        }
+      }
+    },
+    "/status": {
+      "get": {
+        "summary": "Get PA status",
+        "description": "Get the current status of the Personal Agent",
+        "operationId": "getStatus",
+        "responses": {
+          "200": {
+            "description": "Status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/{tool_name}": {
+      "post": {
+        "summary": "Execute a specific tool",
+        "description": "Execute a PA tool like send_whatsapp, save_note, etc.",
+        "operationId": "executeTool",
+        "parameters": [
+          {
+            "name": "tool_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["send_whatsapp", "read_whatsapp", "save_note", "fetch_history", "create_task"]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tool executed successfully"
+          },
+          "404": {
+            "description": "Tool not found"
+          }
+        }
+      }
+    }
+  }
+}

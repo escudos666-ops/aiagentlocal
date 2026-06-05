@@ -1,0 +1,209 @@
+{
+  "dashboard": {
+    "title": "Docker Model Runner - Performance Monitoring",
+    "tags": ["DMR", "AI", "Models", "Performance"],
+    "timezone": "UTC",
+    "panels": [
+      {
+        "title": "Active Models",
+        "type": "stat",
+        "id": 1,
+        "targets": [
+          {
+            "expr": "count(dmr_model_status{status='active'})",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "title": "Total Requests",
+        "type": "stat",
+        "id": 2,
+        "targets": [
+          {
+            "expr": "increase(dmr_requests_total[1h])",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        }
+      },
+      {
+        "title": "Average Inference Time",
+        "type": "stat",
+        "id": 3,
+        "targets": [
+          {
+            "expr": "avg(dmr_inference_duration_seconds)",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        },
+        "unit": "s"
+      },
+      {
+        "title": "Error Rate",
+        "type": "stat",
+        "id": 4,
+        "targets": [
+          {
+            "expr": "rate(dmr_requests_errors_total[5m])",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        },
+        "unit": "reqps"
+      },
+      {
+        "title": "Requests by Model",
+        "type": "piechart",
+        "id": 5,
+        "targets": [
+          {
+            "expr": "sum by(model) (rate(dmr_requests_total[1h]))",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 4
+        }
+      },
+      {
+        "title": "GPU Memory Usage",
+        "type": "graph",
+        "id": 6,
+        "targets": [
+          {
+            "expr": "dmr_gpu_memory_used_bytes / 1024 / 1024 / 1024",
+            "legendFormat": "{{ model }}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 4
+        },
+        "yaxes": [
+          {
+            "label": "Memory (GB)",
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "title": "Inference Time Distribution",
+        "type": "graph",
+        "id": 7,
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, dmr_inference_duration_seconds)",
+            "legendFormat": "p95 {{ model }}",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.99, dmr_inference_duration_seconds)",
+            "legendFormat": "p99 {{ model }}",
+            "refId": "B"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 12
+        },
+        "yaxes": [
+          {
+            "label": "Duration (seconds)",
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "title": "Model Utilization",
+        "type": "graph",
+        "id": 8,
+        "targets": [
+          {
+            "expr": "dmr_model_utilization_percent",
+            "legendFormat": "{{ model }}",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 12
+        },
+        "yaxes": [
+          {
+            "label": "Utilization (%)",
+            "format": "percent",
+            "max": 100
+          }
+        ]
+      },
+      {
+        "title": "Requests by Task Type",
+        "type": "piechart",
+        "id": 9,
+        "targets": [
+          {
+            "expr": "sum by(task_type) (rate(dmr_requests_by_task[1h]))",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 20
+        }
+      },
+      {
+        "title": "Tokens Generated",
+        "type": "graph",
+        "id": 10,
+        "targets": [
+          {
+            "expr": "sum(rate(dmr_tokens_generated_total[1h]))",
+            "legendFormat": "Total tokens/hour",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 20
+        }
+      }
+    ]
+  }
+}

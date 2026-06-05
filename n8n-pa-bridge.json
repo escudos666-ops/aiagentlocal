@@ -1,0 +1,88 @@
+{
+  "name": "Open WebUI to Personal Agent Bridge",
+  "description": "Routes Open WebUI commands to Martin's Personal Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "martin-command",
+        "responseMode": "responseNode",
+        "responseData": "firstEntryJson",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - Open WebUI",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://pa-service:8000/process",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "command"
+            },
+            {
+              "name": "intent",
+              "value": "={{ $json.body.intent || 'question' }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.body.content }}"
+            },
+            {
+              "name": "metadata",
+              "value": "={{ $json.body.metadata || {} }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "call-pa-service",
+      "name": "Call PA Service",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "responseData": "={{ { \"status\": \"success\", \"data\": $json, \"timestamp\": new Date().toISOString() } }}"
+      },
+      "id": "return-result",
+      "name": "Return to Open WebUI",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Open WebUI": {
+      "main": [
+        [
+          {
+            "node": "Call PA Service",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call PA Service": {
+      "main": [
+        [
+          {
+            "node": "Return to Open WebUI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

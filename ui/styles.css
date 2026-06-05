@@ -1,0 +1,18 @@
+﻿:root{
+  --bg:#0f0f0f; --panel:#1e1e1e; --muted:#888; --accent:#0078D4; --text:#eaeaea;
+}
+*{box-sizing:border-box}
+body{margin:0;display:flex;height:100vh;background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif}
+.sidebar{width:240px;background:#1a1a1a;padding:24px;border-right:1px solid #2a2a2a}
+.sidebar h2{color:var(--accent);margin:0 0 16px 0}
+.sidebar ul{list-style:none;padding:0;margin:0}
+.sidebar li{padding:8px 0;cursor:pointer}
+.sidebar li.active{color:var(--accent);font-weight:600}
+.main{flex:1;display:flex;flex-direction:column;overflow:auto}
+.topbar{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid #1f1f1f}
+.inbox{padding:20px}
+.mail-list{display:flex;flex-direction:column;gap:10px}
+.mail-card{background:var(--panel);padding:12px;border-radius:8px;transition:all .15s}
+.mail-card:hover{background:#252525;box-shadow:0 0 8px rgba(0,120,212,0.18)}
+.mail-card h3{margin:0 0 6px 0;color:var(--text)}
+.mail-card .subject{margin:0;color:#ccc}

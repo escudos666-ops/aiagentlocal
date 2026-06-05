@@ -1,0 +1,253 @@
+{
+  "name": "Docker Model Runner - Smart AI Processing",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "6ec8e8c2-ec0c-4b1c-b6d1-2e5c3f4a9b1c",
+      "name": "When called via webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "webhook-dmr-001"
+    },
+    {
+      "parameters": {
+        "jsonData": true,
+        "dataType": "json",
+        "value": "{\n  \"task_type\": \"{{ $json.body.task_type || 'general' }}\",\n  \"prompt\": \"{{ $json.body.prompt }}\",\n  \"model_preference\": \"{{ $json.body.model_preference || 'auto' }}\"\n}"
+      },
+      "id": "extract-params-001",
+      "name": "Extract Parameters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": [
+            {
+              "condition": "string",
+              "value1": "{{ $json.task_type }}",
+              "value2": "coding"
+            }
+          ]
+        }
+      },
+      "id": "route-coding-001",
+      "name": "Is Coding Task?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://model-runner.docker.internal/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "docker.io/ai/llama3.2:latest",
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are an expert programmer. Provide code solutions with explanations."
+            },
+            {
+              "role": "user",
+              "content": "{{ $json.prompt }}"
+            }
+          ],
+          "temperature": 0.7,
+          "max_tokens": 2000
+        }
+      },
+      "id": "call-llama-coding-001",
+      "name": "Call Llama 3.2 (Coding)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 100],
+      "onError": "continueRegardlessly"
+    },
+    {
+      "parameters": {
+        "url": "http://model-runner.docker.internal/v1/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "docker.io/ai/llama3.2:latest",
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are a helpful assistant. Provide clear, concise answers."
+            },
+            {
+              "role": "user",
+              "content": "{{ $json.prompt }}"
+            }
+          ],
+          "temperature": 0.7,
+          "max_tokens": 1000
+        }
+      },
+      "id": "call-llama-general-001",
+      "name": "Call Llama 3.2 (General)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 400],
+      "onError": "continueRegardlessly"
+    },
+    {
+      "parameters": {
+        "dataType": "object",
+        "value": "{\n  \"success\": true,\n  \"task_type\": \"{{ $node['Extract Parameters'].json.task_type }}\",\n  \"model_used\": \"docker.io/ai/llama3.2:latest\",\n  \"response\": \"{{ $json.choices[0].message.content }}\",\n  \"tokens_used\": \"{{ $json.usage.total_tokens }}\",\n  \"timestamp\": \"{{ now() }}\"\n}"
+      },
+      "id": "format-response-001",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "url": "http://openwebui:8080/api/chat/completions",
+        "method": "POST",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "response": "{{ $json.response }}",
+          "metadata": {
+            "model": "{{ $json.model_used }}",
+            "task_type": "{{ $json.task_type }}",
+            "tokens": "{{ $json.tokens_used }}"
+          }
+        }
+      },
+      "id": "update-openwebui-001",
+      "name": "Update Open WebUI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1250, 250],
+      "onError": "continueRegardlessly"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5432",
+        "operation": "executeQuery",
+        "query": "INSERT INTO dmr_requests (task_type, model, prompt, response, tokens_used, created_at) VALUES ($1, $2, $3, $4, $5, NOW())",
+        "queryParameters": "{{ [$json.task_type, $json.model_used, $json.prompt, $json.response, $json.tokens_used] }}"
+      },
+      "id": "save-to-db-001",
+      "name": "Save to PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.3,
+      "position": [1250, 100],
+      "credentials": "postgres_default",
+      "onError": "continueRegardlessly"
+    },
+    {
+      "parameters": {
+        "message": "DMR Response - {{ $json.task_type }}",
+        "value": "Model: {{ $json.model_used }}\nTokens: {{ $json.tokens_used }}\nResponse: {{ $json.response.substring(0, 100) }}..."
+      },
+      "id": "log-response-001",
+      "name": "Log to Console",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "When called via webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Parameters": {
+      "main": [
+        [
+          {
+            "node": "Is Coding Task?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Coding Task?": {
+      "main": [
+        [
+          {
+            "node": "Call Devstral (Coding)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call Nemotron (General)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Devstral (Coding)": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Nemotron (General)": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Update Open WebUI",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Save to PostgreSQL",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Console",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {},
+  "staticData": null,
+  "tags": ["DMR", "Docker Model Runner", "AI", "Open WebUI"]
+}

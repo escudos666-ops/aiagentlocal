@@ -1,0 +1,45 @@
+﻿services:
+  browser-use-webui:
+    container_name: browser-use-webui
+    build:
+      context: ./browser-use-web-ui
+      dockerfile: Dockerfile
+      args:
+        TARGETPLATFORM: ${TARGETPLATFORM:-linux/amd64}
+    env_file:
+      - .env.browser-use
+    environment:
+      OLLAMA_ENDPOINT: http://ollama:11434
+      ANONYMIZED_TELEMETRY: "false"
+      BROWSER_USE_LOGGING_LEVEL: info
+      DISPLAY: ":99"
+      PLAYWRIGHT_BROWSERS_PATH: /ms-browsers
+      RESOLUTION: ${RESOLUTION:-1920x1080x24}
+      RESOLUTION_WIDTH: ${RESOLUTION_WIDTH:-1920}
+      RESOLUTION_HEIGHT: ${RESOLUTION_HEIGHT:-1080}
+      VNC_PASSWORD: ${VNC_PASSWORD:-change-this-vnc-password}
+      USE_OWN_BROWSER: "false"
+      KEEP_BROWSER_OPEN: "true"
+      BROWSER_DEBUGGING_PORT: ${BROWSER_DEBUGGING_PORT:-9222}
+      BROWSER_DEBUGGING_HOST: localhost
+    ports:
+      - "127.0.0.1:7788:7788"
+      - "127.0.0.1:6080:6080"
+    volumes:
+      - browser_use_chrome_data:/app/data/chrome_data
+    restart: unless-stopped
+    shm_size: "2gb"
+    cap_add:
+      - SYS_ADMIN
+    tmpfs:
+      - /tmp
+    networks:
+      - agentnet
+
+volumes:
+  browser_use_chrome_data:
+
+networks:
+  agentnet:
+    external: true
+    name: agentics_agentnet

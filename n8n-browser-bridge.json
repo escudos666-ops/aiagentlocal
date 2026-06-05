@@ -1,0 +1,83 @@
+{
+  "name": "Open WebUI Browser Bridge",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "browser-task",
+        "responseMode": "responseNode",
+        "responseData": "firstEntryJson",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://browser-use-webui:7788/api/browse",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "task",
+              "value": "={{ $json.body.task }}"
+            },
+            {
+              "name": "url",
+              "value": "={{ $json.body.url }}"
+            },
+            {
+              "name": "timeout",
+              "value": "={{ $json.body.timeout || 30000 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "http-browser-use",
+      "name": "Call Browser-Use",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "responseData": "={{ { \"success\": true, \"result\": $json.data, \"timestamp\": new Date().toISOString() } }}"
+      },
+      "id": "response-node",
+      "name": "Return Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Call Browser-Use",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Browser-Use": {
+      "main": [
+        [
+          {
+            "node": "Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}
