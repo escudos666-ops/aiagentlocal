@@ -37,5 +37,7 @@ wsl
 # Dependencies and OS/editor noise
 node_modules/
 **/node_modules/
+.vinext/
+**/.vinext/
 .DS_Store
 Thumbs.db
