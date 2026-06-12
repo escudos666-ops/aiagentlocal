@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import AgentConsole from "./agent-console";
 
 type Priority = "high" | "medium" | "low";
 type TaskStatus = "open" | "done";
@@ -706,7 +707,7 @@ async function fetchStackState(url: string, source: StackState["source"]) {
 
 export default function AssistantClient({ displayName, email }: Props) {
   const [assistantState, setAssistantState] = useState<AssistantState>(emptyState);
-  const [activeView, setActiveView] = useState<"desk" | "stack" | "tasks" | "notes">("desk");
+  const [activeView, setActiveView] = useState<"agent" | "stack" | "desk" | "tasks" | "notes">("agent");
   const [stackState, setStackState] = useState<StackState>(emptyStackState);
   const [command, setCommand] = useState("");
   const [taskTitle, setTaskTitle] = useState("");
@@ -984,7 +985,7 @@ export default function AssistantClient({ displayName, email }: Props) {
           </div>
 
           <nav className="flex w-full gap-2 rounded-lg border border-[#cdd6d1] bg-white p-1 lg:w-auto">
-            {(["desk", "stack", "tasks", "notes"] as const).map((view) => (
+            {(["agent", "stack", "desk", "tasks", "notes"] as const).map((view) => (
               <button
                 key={view}
                 type="button"
@@ -1059,6 +1060,9 @@ export default function AssistantClient({ displayName, email }: Props) {
           </aside>
 
           <section className="min-w-0 rounded-lg border border-[#d9ded8] bg-white">
+            {activeView === "agent" ? (
+              <AgentConsole displayName={displayName} />
+            ) : null}
             {activeView === "desk" ? (
               <DeskView
                 agendaBlocks={assistantState.agendaBlocks}
