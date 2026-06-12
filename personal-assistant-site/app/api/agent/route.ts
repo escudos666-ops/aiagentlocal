@@ -1,5 +1,4 @@
 import { desc, eq } from "drizzle-orm";
-import { env } from "cloudflare:workers";
 import { getDb } from "../../../db";
 import { agentRuns } from "../../../db/schema";
 
@@ -13,8 +12,13 @@ type AgentPayload = {
 };
 
 type RuntimeEnv = Record<string, string | undefined>;
+type RuntimeGlobal = typeof globalThis & {
+  env?: RuntimeEnv;
+  __env__?: RuntimeEnv;
+};
 
-const runtimeEnv = env as unknown as RuntimeEnv;
+const runtimeGlobal = globalThis as RuntimeGlobal;
+const runtimeEnv = runtimeGlobal.env ?? runtimeGlobal.__env__ ?? {};
 
 function getOwnerEmail(request: Request) {
   return request.headers.get("oai-authenticated-user-email") ?? "local-preview@example.com";
