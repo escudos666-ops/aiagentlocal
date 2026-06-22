@@ -779,7 +779,11 @@ export default function AssistantClient({ displayName, email }: Props) {
   }, []);
 
   useEffect(() => {
-    void loadStackState();
+    const refreshTimer = window.setTimeout(() => {
+      void loadStackState();
+    }, 0);
+
+    return () => window.clearTimeout(refreshTimer);
   }, [loadStackState]);
 
   const openTasks = useMemo(
@@ -984,13 +988,13 @@ export default function AssistantClient({ displayName, email }: Props) {
             </p>
           </div>
 
-          <nav className="flex w-full gap-2 rounded-lg border border-[#cdd6d1] bg-white p-1 lg:w-auto">
+          <nav className="flex w-full flex-wrap gap-2 rounded-lg border border-[#cdd6d1] bg-white p-1 lg:w-auto lg:flex-nowrap">
             {(["agent", "stack", "desk", "tasks", "notes"] as const).map((view) => (
               <button
                 key={view}
                 type="button"
                 onClick={() => setActiveView(view)}
-                className={`h-10 flex-1 rounded-md px-4 text-sm font-medium capitalize transition lg:flex-none ${
+                className={`h-10 min-w-[92px] flex-1 rounded-md px-4 text-sm font-medium capitalize transition lg:min-w-0 lg:flex-none ${
                   activeView === view
                     ? "bg-[#1d7f75] text-white"
                     : "text-[#36403b] hover:bg-[#eef2ef]"
@@ -1002,8 +1006,8 @@ export default function AssistantClient({ displayName, email }: Props) {
           </nav>
         </header>
 
-        <section className="grid flex-1 gap-4 py-4 lg:grid-cols-[300px_minmax(0,1fr)_360px]">
-          <aside className="flex flex-col gap-4">
+        <section className="grid flex-1 gap-4 py-4 lg:grid-cols-[260px_minmax(0,1fr)_300px] xl:grid-cols-[280px_minmax(0,1fr)_320px]">
+          <aside className="order-2 flex flex-col gap-4 lg:order-1">
             <section className="rounded-lg border border-[#d9ded8] bg-white p-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold uppercase text-[#53605a]">Today</h2>
@@ -1047,6 +1051,7 @@ export default function AssistantClient({ displayName, email }: Props) {
                 width={900}
                 height={520}
                 priority
+                unoptimized
                 className="h-44 w-full object-cover"
               />
               <div className="border-t border-[#d9ded8] p-4">
@@ -1059,7 +1064,7 @@ export default function AssistantClient({ displayName, email }: Props) {
             </section>
           </aside>
 
-          <section className="min-w-0 rounded-lg border border-[#d9ded8] bg-white">
+          <section className="order-1 min-w-0 rounded-xl border-2 border-[#b8ddd7] bg-white shadow-sm lg:order-2">
             {activeView === "agent" ? (
               <AgentConsole displayName={displayName} />
             ) : null}
@@ -1104,7 +1109,7 @@ export default function AssistantClient({ displayName, email }: Props) {
             ) : null}
           </section>
 
-          <aside className="flex flex-col gap-4">
+          <aside className="order-3 flex flex-col gap-4 lg:order-3">
             <section className="rounded-lg border border-[#d9ded8] bg-white p-4">
               <h2 className="text-sm font-semibold uppercase text-[#53605a]">Agenda</h2>
               <div className="mt-4 flex flex-col gap-3">

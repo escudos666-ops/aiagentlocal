@@ -25,3 +25,20 @@ N8N_AGENT_WEBHOOK_URL=http://n8n:5678/webhook/agentics-chat
 ```
 
 Without that variable, the UI still works as a stack map and health console.
+
+## Optional OpenAI Responses MCP panel
+
+The Agent Orchestrator includes an OpenAI MCP Response panel that mirrors a
+Responses API request with a remote MCP server. Configure these values in the
+site runtime before using it:
+
+```env
+OPENAI_API_KEY=
+OPENAI_RESPONSES_MODEL=gpt-5.4-mini
+PIPEDREAM_MCP_SERVER_URL=https://remote.mcp.pipedream.net
+PIPEDREAM_MCP_APP_SLUG=
+PIPEDREAM_MCP_AUTHORIZATION=
+```
+
+Keep Pipedream authorization values in local runtime configuration only. Do not
+commit them to the repository.

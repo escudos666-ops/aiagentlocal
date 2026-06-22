@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.vinext/
+.wrangler/
+.next/
+*.log
+npm-debug.log*
+Dockerfile
+.dockerignore
