@@ -1,0 +1,166 @@
+{
+    "title":  "Personal Assistant",
+    "primary":  "Email Center",
+    "functions":  [
+                      {
+                          "id":  "email_center",
+                          "label":  "Email Center",
+                          "backend":  "n8n + pa-service",
+                          "enabled":  true,
+                          "actions":  [
+                                          "priority_inbox",
+                                          "summarize_unread",
+                                          "draft_reply",
+                                          "detect_followups",
+                                          "email_to_task",
+                                          "email_to_calendar"
+                                      ],
+                          "approval_required":  [
+                                                    "send_email",
+                                                    "delete_email",
+                                                    "forward_email"
+                                                ]
+                      },
+                      {
+                          "id":  "calendar_center",
+                          "label":  "Calendar Center",
+                          "backend":  "n8n + pa-service",
+                          "enabled":  true,
+                          "actions":  [
+                                          "today_schedule",
+                                          "meeting_prep",
+                                          "draft_event",
+                                          "detect_conflicts"
+                                      ],
+                          "approval_required":  [
+                                                    "create_external_invite",
+                                                    "cancel_event"
+                                                ]
+                      },
+                      {
+                          "id":  "local_docs",
+                          "label":  "Local Files \u0026 Docs",
+                          "backend":  "minio + tika + chroma",
+                          "enabled":  true,
+                          "actions":  [
+                                          "upload_file",
+                                          "parse_document",
+                                          "search_docs",
+                                          "summarize_doc",
+                                          "extract_tasks"
+                                      ],
+                          "approval_required":  [
+                                                    "delete_file",
+                                                    "overwrite_file"
+                                                ]
+                      },
+                      {
+                          "id":  "terminal_workspace",
+                          "label":  "Terminal Workspace",
+                          "backend":  "open-terminal",
+                          "enabled":  true,
+                          "actions":  [
+                                          "list_files",
+                                          "read_file",
+                                          "grep_files",
+                                          "run_safe_command",
+                                          "check_logs"
+                                      ],
+                          "approval_required":  [
+                                                    "execute_shell",
+                                                    "write_file",
+                                                    "replace_file"
+                                                ]
+                      },
+                      {
+                          "id":  "docker_stack",
+                          "label":  "Docker Stack Control",
+                          "backend":  "agentics-tools-api",
+                          "enabled":  true,
+                          "actions":  [
+                                          "list_containers",
+                                          "container_health",
+                                          "container_logs",
+                                          "image_inventory",
+                                          "volume_inventory"
+                                      ],
+                          "approval_required":  [
+                                                    "restart_container",
+                                                    "stop_container",
+                                                    "compose_up",
+                                                    "compose_down",
+                                                    "delete_volume"
+                                                ]
+                      },
+                      {
+                          "id":  "browser_automation",
+                          "label":  "Browser Automation",
+                          "backend":  "browser-use-web-ui",
+                          "enabled":  true,
+                          "actions":  [
+                                          "open_page",
+                                          "read_page",
+                                          "search_web",
+                                          "download_file",
+                                          "fill_form_draft"
+                                      ],
+                          "approval_required":  [
+                                                    "submit_form",
+                                                    "send_message",
+                                                    "purchase"
+                                                ]
+                      },
+                      {
+                          "id":  "model_manager",
+                          "label":  "Model Manager",
+                          "backend":  "ollama-gpu",
+                          "enabled":  true,
+                          "actions":  [
+                                          "list_models",
+                                          "model_health",
+                                          "gpu_status"
+                                      ],
+                          "approval_required":  [
+                                                    "pull_model",
+                                                    "delete_model"
+                                                ]
+                      },
+                      {
+                          "id":  "approvals",
+                          "label":  "Approvals \u0026 Audit Log",
+                          "backend":  "postgres",
+                          "enabled":  true,
+                          "actions":  [
+                                          "pending_approvals",
+                                          "approve_action",
+                                          "reject_action",
+                                          "audit_log"
+                                      ],
+                          "approval_required":  [
+
+                                                ]
+                      },
+                      {
+                          "id":  "n8n_workflows",
+                          "label":  "n8n Workflows",
+                          "backend":  "n8n",
+                          "host_url":  "http://127.0.0.1:5678",
+                          "docker_url":  "http://n8n:5678",
+                          "enabled":  true,
+                          "actions":  [
+                                          "open_dashboard",
+                                          "list_workflows",
+                                          "run_workflow",
+                                          "daily_briefing",
+                                          "email_scan",
+                                          "backup_check"
+                                      ],
+                          "approval_required":  [
+                                                    "run_workflow",
+                                                    "activate_workflow",
+                                                    "modify_workflow",
+                                                    "delete_workflow"
+                                                ]
+                      }
+                  ]
+}

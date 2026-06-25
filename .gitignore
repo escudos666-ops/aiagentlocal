@@ -28,6 +28,11 @@ ui_backup_*/
 __pycache__/
 *.py[cod]
 config/webui/uploads/
+webui-function-check-*/
+docker_ollama_audit_*.json
+n8n-export/
+.codex/
+agentics-playwright/orderpage-dom.html
 
 # Local command/output scratch files
 out.txt

@@ -1,0 +1,7 @@
+services:
+  playwright-service:
+    build: .
+    container_name: agentics-playwright
+    ports:
+      - "3000:3000"
+    shm_size: "2gb"
