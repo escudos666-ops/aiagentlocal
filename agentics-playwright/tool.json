@@ -1,0 +1,18 @@
+{
+  "name": "priority_connect_order_entry",
+  "description": "Voert Shopify-bestellingen automatisch in het Priority Connect HTML-systeem in via Playwright.",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": ["insert_order"]
+      },
+      "order": {
+        "type": "object",
+        "description": "Shopify order payload"
+      }
+    },
+    "required": ["action", "order"]
+  }
+}

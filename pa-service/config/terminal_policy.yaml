@@ -1,0 +1,43 @@
+terminal_policy:
+  mode: container_only
+
+  allow_without_approval:
+    - pwd
+    - ls
+    - dir
+    - cat
+    - head
+    - tail
+    - grep
+    - find
+    - git status
+    - docker ps
+    - docker logs --tail
+
+  require_approval:
+    - docker restart
+    - docker stop
+    - docker compose up
+    - docker compose down
+    - rm
+    - mv
+    - chmod
+    - chown
+    - pip install
+    - npm install
+    - apt install
+    - files/write
+    - files/replace
+
+  blocked:
+    - printenv
+    - cat .env
+    - type .env
+    - Get-Content .env
+    - docker volume rm
+    - docker system prune
+    - Remove-Item
+    - format
+    - firewall
+    - netsh
+    - Set-NetFirewallRule

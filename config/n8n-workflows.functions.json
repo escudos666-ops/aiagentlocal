@@ -1,0 +1,74 @@
+{
+  "id": "n8n_workflows",
+  "label": "n8n Workflows",
+  "backend": "n8n",
+  "host_url": "http://127.0.0.1:5678",
+  "docker_url": "http://n8n:5678",
+  "enabled": true,
+  "functions": [
+    {
+      "id": "n8n_open_dashboard",
+      "label": "Open n8n Dashboard",
+      "method": "BROWSER",
+      "url": "http://127.0.0.1:5678",
+      "risk": "low",
+      "approval_required": false
+    },
+    {
+      "id": "n8n_list_workflows",
+      "label": "List Workflows",
+      "backend_action": "n8n.list_workflows",
+      "risk": "low",
+      "approval_required": false
+    },
+    {
+      "id": "n8n_daily_briefing",
+      "label": "Run Daily Briefing",
+      "backend_action": "n8n.run_daily_briefing",
+      "risk": "medium",
+      "approval_required": false
+    },
+    {
+      "id": "n8n_email_scan",
+      "label": "Run Email Scan",
+      "backend_action": "n8n.run_email_scan",
+      "risk": "medium",
+      "approval_required": false
+    },
+    {
+      "id": "n8n_backup_check",
+      "label": "Run Backup Check",
+      "backend_action": "n8n.run_backup_check",
+      "risk": "low",
+      "approval_required": false
+    },
+    {
+      "id": "n8n_run_workflow",
+      "label": "Run Workflow",
+      "backend_action": "n8n.run_workflow",
+      "risk": "medium",
+      "approval_required": true
+    },
+    {
+      "id": "n8n_activate_workflow",
+      "label": "Activate Workflow",
+      "backend_action": "n8n.activate_workflow",
+      "risk": "high",
+      "approval_required": true
+    },
+    {
+      "id": "n8n_modify_workflow",
+      "label": "Modify Workflow",
+      "backend_action": "n8n.modify_workflow",
+      "risk": "high",
+      "approval_required": true
+    },
+    {
+      "id": "n8n_delete_workflow",
+      "label": "Delete Workflow",
+      "backend_action": "n8n.delete_workflow",
+      "risk": "high",
+      "approval_required": true
+    }
+  ]
+}

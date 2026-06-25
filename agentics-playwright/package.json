@@ -1,0 +1,13 @@
+{
+  "name": "agentics-playwright",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "inspect": "node inspect.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "playwright": "^1.44.0"
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "source": {
+    "container": "open-webui",
+    "database": "/app/backend/data/webui.db"
+  },
+  "tool_server": {
+    "connections": [
+      {
+        "url": "http://agentics-mcp:8766/mcp",
+        "path": "",
+        "type": "mcp",
+        "auth_type": "none",
+        "headers": {},
+        "key": "",
+        "config": {
+          "enable": true,
+          "access_grants": [
+            {
+              "principal_type": "user",
+              "principal_id": "*",
+              "permission": "read"
+            }
+          ]
+        },
+        "info": {
+          "id": "agentics_mcp",
+          "name": "Agentics MCP",
+          "description": "Local Agentics MCP tools for service health checks, browser automation, and Agentics workflows."
+        }
+      }
+    ]
+  },
+  "terminal": {
+    "url": "http://open-terminal:8000",
+    "workspace": "/home/user/workspace",
+    "gateway_route": "http://127.0.0.1:8088/api/terminal/"
+  },
+  "sandbox": {
+    "active_fallback": "open-terminal",
+    "vm_backed_host_cli": "sbx",
+    "setup_script": "setup-docker-sbx-complete.ps1",
+    "tools_api_readiness": "http://agentics-tools-api:8765/sandbox/readiness"
+  },
+  "openai": {
+    "enable": true,
+    "api_base_urls": [
+      "http://host.docker.internal:12434/engines/llama.cpp/v1"
+    ],
+    "api_keys": [
+      "dmr-local"
+    ],
+    "api_configs": {
+      "0": {
+        "enable": true,
+        "tags": [
+          "docker-model-runner",
+          "local"
+        ]
+      }
+    }
+  },
+  "models": {
+    "base_models_cache": false
+  },
+  "mirrored_entries": {
+    "tools": [
+      "agentics_stack_health",
+      "agentics_open_terminal"
+    ],
+    "functions": [
+      "agentics_context_filter"
+    ],
+    "skills": [
+      "agentics-stack-operator",
+      "agentics-terminal-operator",
+      "agentics-vm-sandbox-orchestrator"
+    ],
+    "prompts": [
+      "stack-doctor",
+      "terminal-task",
+      "sandbox-agent-mission",
+      "webui-functional-smoke",
+      "model-router-check"
+    ]
+  }
+}
