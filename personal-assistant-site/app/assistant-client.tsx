@@ -718,10 +718,18 @@ export default function AssistantClient({ displayName, email }: Props) {
   const [isStackLoading, setIsStackLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
-  const [clock, setClock] = useState(timeNowLabel());
+  const [clock, setClock] = useState<{ today: string; time: string } | null>(null);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setClock(timeNowLabel()), 30000);
+    function updateClock() {
+      setClock({
+        today: todayLabel(),
+        time: timeNowLabel(),
+      });
+    }
+
+    updateClock();
+    const timer = window.setInterval(updateClock, 30000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -981,7 +989,9 @@ export default function AssistantClient({ displayName, email }: Props) {
       <div className="mx-auto flex min-h-screen max-w-[1480px] flex-col px-4 py-4 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-4 border-b border-[#d9ded8] py-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-[#65706b]">{todayLabel()} at {clock}</p>
+            <p className="text-sm font-medium text-[#65706b]">
+              {clock ? `${clock.today} at ${clock.time}` : "Local workspace"}
+            </p>
             <h1 className="text-2xl font-semibold sm:text-3xl">Personal Assistant</h1>
             <p className="text-sm text-[#65706b]">
               Good to see you, {displayName}. {email ? "Workspace identity is active." : "Local preview identity is active."}

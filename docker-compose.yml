@@ -310,6 +310,34 @@ services:
       - agentnet
     restart: unless-stopped
 
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.58.0-noble
+    container_name: agentics-playwright
+    command:
+      - npx
+      - -y
+      - playwright@1.58.0
+      - run-server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "3010"
+    ports:
+      - "127.0.0.1:3010:3010"
+    shm_size: "2gb"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >
+          node -e "const net=require('net'); const s=net.connect(3010,'127.0.0.1',()=>process.exit(0)); s.on('error',()=>process.exit(1)); setTimeout(()=>process.exit(1),5000);"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - agentnet
+    restart: unless-stopped
+
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
     container_name: n8n

@@ -311,7 +311,7 @@ def _get_browser_use_config() -> dict[str, Any]:
     }
 
 
-def _with_playwright_page(
+async def _with_playwright_page(
     url: str,
     wait_until: str,
     wait_ms: int,
@@ -319,7 +319,7 @@ def _with_playwright_page(
     width: int,
     height: int,
 ):
-    from playwright.sync_api import sync_playwright
+    from playwright.async_api import async_playwright
 
     allowed_wait_until = {"commit", "domcontentloaded", "load", "networkidle"}
     if wait_until not in allowed_wait_until:
@@ -328,37 +328,37 @@ def _with_playwright_page(
         )
 
     normalized_url = _ensure_url(url)
-    playwright = sync_playwright().start()
+    playwright = await async_playwright().start()
     browser = None
     context = None
     try:
-        browser = playwright.chromium.connect(_playwright_ws_url(), timeout=timeout_ms)
-        context = browser.new_context(viewport={"width": width, "height": height})
-        page = context.new_page()
-        response = page.goto(normalized_url, wait_until=wait_until, timeout=timeout_ms)
+        browser = await playwright.chromium.connect(_playwright_ws_url(), timeout=timeout_ms)
+        context = await browser.new_context(viewport={"width": width, "height": height})
+        page = await context.new_page()
+        response = await page.goto(normalized_url, wait_until=wait_until, timeout=timeout_ms)
         if wait_ms > 0:
-            page.wait_for_timeout(wait_ms)
+            await page.wait_for_timeout(wait_ms)
 
         return playwright, browser, context, page, response
     except Exception:
         if context is not None:
-            context.close()
+            await context.close()
         if browser is not None:
-            browser.close()
-        playwright.stop()
+            await browser.close()
+        await playwright.stop()
         raise
 
 
-def _close_playwright(playwright, browser, context) -> None:
+async def _close_playwright(playwright, browser, context) -> None:
     try:
         if context is not None:
-            context.close()
+            await context.close()
     finally:
         try:
             if browser is not None:
-                browser.close()
+                await browser.close()
         finally:
-            playwright.stop()
+            await playwright.stop()
 
 
 @mcp.custom_route("/health", methods=["GET"])
@@ -476,7 +476,7 @@ def browser_use_webui_status() -> dict[str, Any]:
 
 
 @mcp.tool()
-def playwright_open_page(
+async def playwright_open_page(
     url: str,
     wait_until: str = "domcontentloaded",
     wait_ms: int = 1000,
@@ -490,7 +490,7 @@ def playwright_open_page(
     """Open a URL through the connected Playwright server and return page details."""
     playwright = browser = context = None
     try:
-        playwright, browser, context, page, response = _with_playwright_page(
+        playwright, browser, context, page, response = await _with_playwright_page(
             url=url,
             wait_until=wait_until,
             wait_ms=wait_ms,
@@ -502,14 +502,14 @@ def playwright_open_page(
         body_text = ""
         body_text_error = None
         try:
-            body_text = page.locator("body").inner_text(timeout=min(timeout_ms, 5000))
+            body_text = await page.locator("body").inner_text(timeout=min(timeout_ms, 5000))
         except Exception as exc:
             body_text_error = f"{type(exc).__name__}: {exc}"
 
         screenshot_base64 = None
         if screenshot:
             screenshot_base64 = base64.b64encode(
-                page.screenshot(full_page=full_page, timeout=timeout_ms)
+                await page.screenshot(full_page=full_page, timeout=timeout_ms)
             ).decode("ascii")
 
         return {
@@ -517,7 +517,7 @@ def playwright_open_page(
             "playwright_ws_url": _playwright_ws_url(),
             "requested_url": url,
             "final_url": page.url,
-            "title": page.title(),
+            "title": await page.title(),
             "status": response.status if response else None,
             "body_text": body_text[: max(0, text_limit)],
             "body_text_truncated": len(body_text) > text_limit,
@@ -533,11 +533,11 @@ def playwright_open_page(
         }
     finally:
         if playwright is not None:
-            _close_playwright(playwright, browser, context)
+            await _close_playwright(playwright, browser, context)
 
 
 @mcp.tool()
-def playwright_extract_links(
+async def playwright_extract_links(
     url: str,
     limit: int = 50,
     wait_until: str = "domcontentloaded",
@@ -547,7 +547,7 @@ def playwright_extract_links(
     """Open a URL through Playwright and return links discovered on the page."""
     playwright = browser = context = None
     try:
-        playwright, browser, context, page, response = _with_playwright_page(
+        playwright, browser, context, page, response = await _with_playwright_page(
             url=url,
             wait_until=wait_until,
             wait_ms=wait_ms,
@@ -555,7 +555,7 @@ def playwright_extract_links(
             width=1280,
             height=900,
         )
-        links = page.eval_on_selector_all(
+        links = await page.eval_on_selector_all(
             "a[href]",
             """
             (elements, limit) => elements
@@ -574,7 +574,7 @@ def playwright_extract_links(
             "playwright_ws_url": _playwright_ws_url(),
             "requested_url": url,
             "final_url": page.url,
-            "title": page.title(),
+            "title": await page.title(),
             "status": response.status if response else None,
             "links": links,
         }
@@ -587,7 +587,7 @@ def playwright_extract_links(
         }
     finally:
         if playwright is not None:
-            _close_playwright(playwright, browser, context)
+            await _close_playwright(playwright, browser, context)
 
 
 @mcp.tool()
