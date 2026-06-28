@@ -1,0 +1,12 @@
+services:
+  sitecreatorvinextstarter:
+    image: sitecreatorvinextstarter
+    build:
+      context: personal-assistant-site
+      dockerfile: ./Dockerfile
+    environment:
+      NODE_ENV: development
+    ports:
+      - 3000:3000
+      - 9229:9229
+    command: ["node", "--inspect=0.0.0.0:9229", "index.js"]

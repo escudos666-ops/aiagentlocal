@@ -1,0 +1,4 @@
+﻿services:
+  open-webui:
+    environment:
+      DEFAULT_MODEL_PARAMS: '{"function_calling":"native"}'

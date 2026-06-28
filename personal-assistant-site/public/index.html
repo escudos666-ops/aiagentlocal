@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Agentics Personal Assistant</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">A</span>
+          <div>
+            <strong>Agentics</strong>
+            <span>Personal assistant</span>
+          </div>
+        </div>
+
+        <nav aria-label="Assistant areas">
+          <a href="#assistant" class="active">Assistant Core</a>
+          <a href="#automation">Automation</a>
+          <a href="#memory">Memory</a>
+          <a href="#observability">Observability</a>
+        </nav>
+
+        <div class="sidebar-note">
+          <span id="last-check">Waiting for checks</span>
+          <button id="refresh" type="button">Refresh</button>
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Local Docker Desktop control room</p>
+            <h1>Agentics Personal Assistant</h1>
+          </div>
+          <div class="top-actions">
+            <a class="ghost-button" href="http://localhost:5678" target="_blank" rel="noreferrer">n8n</a>
+            <a class="primary-button" href="http://localhost:3000" target="_blank" rel="noreferrer">Open WebUI</a>
+          </div>
+        </header>
+
+        <section class="status-strip" aria-label="Stack status">
+          <div>
+            <span class="metric-label">Online</span>
+            <strong id="online-count">-</strong>
+          </div>
+          <div>
+            <span class="metric-label">Needs attention</span>
+            <strong id="offline-count">-</strong>
+          </div>
+          <div>
+            <span class="metric-label">Assistant path</span>
+            <strong>Chat -> Tools -> Actions -> Memory</strong>
+          </div>
+        </section>
+
+        <section class="workspace">
+          <div class="assistant-panel" id="assistant">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Primary flow</p>
+                <h2>One assistant, many containers</h2>
+              </div>
+              <span id="overall-pill" class="pill">Checking</span>
+            </div>
+
+            <div class="flow">
+              <div class="flow-step">
+                <span>01</span>
+                <strong>Chat</strong>
+                <p>Open WebUI handles the conversation surface.</p>
+              </div>
+              <div class="flow-line"></div>
+              <div class="flow-step">
+                <span>02</span>
+                <strong>Reason</strong>
+                <p>Ollama runs local models for private inference.</p>
+              </div>
+              <div class="flow-line"></div>
+              <div class="flow-step">
+                <span>03</span>
+                <strong>Act</strong>
+                <p>MCP and n8n connect tools, workflows, and WhatsApp.</p>
+              </div>
+              <div class="flow-line"></div>
+              <div class="flow-step">
+                <span>04</span>
+                <strong>Remember</strong>
+                <p>Postgres, Redis, MinIO, Chroma, and Tika hold state and files.</p>
+              </div>
+            </div>
+
+            <form id="workflow-form" class="command-bar">
+              <input
+                id="workflow-input"
+                name="instruction"
+                autocomplete="off"
+                placeholder="Send a task to the n8n agent webhook"
+              />
+              <button type="submit">Dispatch</button>
+            </form>
+            <p id="workflow-result" class="form-result" role="status"></p>
+          </div>
+
+          <section class="services" aria-label="Service health">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Live map</p>
+                <h2>Container roles</h2>
+              </div>
+              <span>Docker network: agentics_agentnet</span>
+            </div>
+
+            <div id="service-groups" class="service-groups"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,18 @@
+﻿services:
+  open-webui-dmr:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: agentics-open-webui-dmr
+    ports:
+      - "3000:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:12434
+      - WEBUI_AUTH=false
+      - DEFAULT_MODELS=docker.io/ai/qwen2.5:latest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - open-webui-dmr:/app/backend/data
+    restart: unless-stopped
+
+volumes:
+  open-webui-dmr:

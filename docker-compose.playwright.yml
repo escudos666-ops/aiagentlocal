@@ -1,0 +1,17 @@
+﻿services:
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.58.0-noble
+    container_name: playwright
+    init: true
+    ipc: host
+    user: pwuser
+    working_dir: /home/pwuser
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3010:3000"
+    extra_hosts:
+      - "hostmachine:host-gateway"
+    security_opt:
+      - seccomp=./seccomp_profile.json
+    command: >
+      /bin/sh -lc "npx -y playwright@1.58.0 run-server --port 3000 --host 0.0.0.0"

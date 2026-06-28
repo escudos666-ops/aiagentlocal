@@ -4,6 +4,8 @@
 
 You now have a **fully-configured enterprise-grade AI stack** with Docker Model Runner integrated.
 
+For the current browser UI source-of-truth, ports, and gateway hostnames, see `docs/UI_MAP.md`.
+
 ### What's Working
 
 ✅ **Smart Model Router** - Auto-detects task type, routes to best model

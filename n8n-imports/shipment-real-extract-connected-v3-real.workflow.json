@@ -1,0 +1,126 @@
+{
+    "name":  "Agentics - Real shipment extraction CONNECTED v3 REAL",
+    "nodes":  [
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "manual-trigger",
+                      "name":  "Manual Trigger",
+                      "type":  "n8n-nodes-base.manualTrigger",
+                      "typeVersion":  1,
+                      "position":  [
+                                       0,
+                                       0
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "return [{ json: { sourceFile: \u0027manual-demo-shipment.txt\u0027, documentText: `Shipment reference: SHIP-DEMO-001\\nCustomer PO: PO-DEMO-001\\nCustomer: Admetec Demo Customer\\n\\nLine 1:\\nProduct code: ADM-DEMO-001\\nDescription: Demo shipment extraction line\\nQuantity: 2\\nSerial number: SN-DEMO-001` } }];"
+                                     },
+                      "id":  "demo-input",
+                      "name":  "Demo Shipment Input",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       280,
+                                       0
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const CFG = {\n  maxTokens: 1024,\n  model: \"docker.io/ai/qwen2.5:latest\",\n  dmrUrl: \"http://host.docker.internal:12434/engines/llama.cpp/v1/chat/completions\",\n  graphqlUrl: \"http://host.docker.internal:5000/graphql\",\n  tikaUrl: \"http://tika:9998/tika\"\n};\n\nif (typeof fetch !== \"function\") {\n  throw new Error(\"Global fetch is not available in this n8n Code node runtime.\");\n}\n\nasync function postJson(url, body, headers = {}) {\n  const res = await fetch(url, {\n    method: \"POST\",\n    headers: { \"Content-Type\": \"application/json\", ...headers },\n    body: JSON.stringify(body)\n  });\n\n  const text = await res.text();\n\n  let json;\n  try {\n    json = text ? JSON.parse(text) : {};\n  } catch {\n    throw new Error(`HTTP ${res.status} from ${url}: non-JSON response: ${text.slice(0, 1000)}`);\n  }\n\n  if (!res.ok) {\n    throw new Error(`HTTP ${res.status} from ${url}: ${JSON.stringify(json).slice(0, 1500)}`);\n  }\n\n  return json;\n}\n\nasync function gql(query, variables = {}) {\n  const result = await postJson(CFG.graphqlUrl, { query, variables });\n\n  if (result.errors) {\n    throw new Error(\"GraphQL errors: \" + JSON.stringify(result.errors));\n  }\n\n  return result.data;\n}\n\nfunction namedType(type) {\n  let t = type;\n  while (t \u0026\u0026 t.ofType) t = t.ofType;\n  return t ? t.name : null;\n}\n\nconst typeCache = new Map();\n\nasync function getInputFields(typeName) {\n  if (typeCache.has(typeName)) return typeCache.get(typeName);\n\n  const data = await gql(\n    `query($name: String!) {\n      __type(name: $name) {\n        inputFields {\n          name\n          type {\n            kind\n            name\n            ofType {\n              kind\n              name\n              ofType {\n                kind\n                name\n                ofType {\n                  kind\n                  name\n                  ofType {\n                    kind\n                    name\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }`,\n    { name: typeName }\n  );\n\n  const fields = data.__type?.inputFields || [];\n  typeCache.set(typeName, fields);\n  return fields;\n}\n\nasync function getCreateSpec(entityName) {\n  const data = await gql(\n    `query {\n      __schema {\n        mutationType {\n          fields {\n            name\n            args {\n              name\n              type {\n                kind\n                name\n                ofType {\n                  kind\n                  name\n                  ofType {\n                    kind\n                    name\n                    ofType {\n                      kind\n                      name\n                      ofType {\n                        kind\n                        name\n                      }\n                    }\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }`\n  );\n\n  const mutations = data.__schema?.mutationType?.fields || [];\n  const mutationName = `create${entityName}`;\n\n  const mutation = mutations.find(m =\u003e m.name === mutationName);\n  if (!mutation) {\n    throw new Error(`Could not find mutation ${mutationName}`);\n  }\n\n  const inputArg = mutation.args.find(a =\u003e a.name === \"input\") || mutation.args[0];\n  const outerInputType = namedType(inputArg.type);\n  const outerFields = await getInputFields(outerInputType);\n\n  const wantedRowField = entityName.charAt(0).toLowerCase() + entityName.slice(1);\n\n  const rowField =\n    outerFields.find(f =\u003e f.name === wantedRowField) ||\n    outerFields.find(f =\u003e f.name !== \"clientMutationId\");\n\n  if (!rowField) {\n    throw new Error(`Could not find row field for ${mutationName}`);\n  }\n\n  const rowInputType = namedType(rowField.type);\n  const rowFields = await getInputFields(rowInputType);\n\n  return {\n    mutationName,\n    outerInputType,\n    rowFieldName: rowField.name,\n    payloadField: wantedRowField,\n    rowFields\n  };\n}\n\nfunction getAny(obj, keys) {\n  if (!obj || typeof obj !== \"object\") return undefined;\n\n  for (const key of keys) {\n    const exact = obj[key];\n    if (exact !== undefined \u0026\u0026 exact !== null \u0026\u0026 exact !== \"\") return exact;\n\n    const found = Object.keys(obj).find(k =\u003e k.toLowerCase() === key.toLowerCase());\n    if (found \u0026\u0026 obj[found] !== undefined \u0026\u0026 obj[found] !== null \u0026\u0026 obj[found] !== \"\") {\n      return obj[found];\n    }\n  }\n\n  return undefined;\n}\n\nfunction coerce(value, field) {\n  if (value === undefined || value === null || value === \"\") return undefined;\n\n  const typeName = namedType(field.type);\n\n  if (typeName === \"Int\") {\n    const n = parseInt(String(value).replace(\",\", \".\"), 10);\n    return Number.isFinite(n) ? n : undefined;\n  }\n\n  if ([\"Float\", \"BigFloat\", \"Decimal\"].includes(typeName)) {\n    const n = Number(String(value).replace(\",\", \".\"));\n    return Number.isFinite(n) ? n : undefined;\n  }\n\n  return value;\n}\n\nfunction buildDocumentInput(fields, extracted, sourceFile, rawText) {\n  const doc = extracted.document || {};\n  const firstLine = (extracted.lines || [])[0] || {};\n  const out = {};\n\n  for (const field of fields) {\n    const name = field.name;\n    const n = name.toLowerCase();\n\n    if ([\"id\", \"nodeid\", \"createdat\", \"updatedat\"].includes(n)) continue;\n\n    let value = getAny(doc, [name]);\n\n    if (value === undefined) {\n      if (n.includes(\"source\") || n.includes(\"file\")) value = sourceFile;\n      else if (n.includes(\"document\") \u0026\u0026 n.includes(\"type\")) value = \"shipment\";\n      else if (n.includes(\"type\")) value = \"shipment\";\n      else if (n.includes(\"shipment\") \u0026\u0026 n.includes(\"ref\")) value = doc.shipmentRef || firstLine.shipmentRef || \"UNKNOWN\";\n      else if (n.includes(\"customer\") \u0026\u0026 n.includes(\"po\")) value = doc.customerPo || firstLine.customerPo || \"\";\n      else if (n.includes(\"customer\") \u0026\u0026 (n.includes(\"name\") || n === \"customer\")) value = doc.customerName || \"\";\n      else if (n.includes(\"invoice\")) value = doc.invoiceNumber || \"\";\n      else if (n.includes(\"date\")) value = doc.shipmentDate || doc.invoiceDate || undefined;\n      else if (n.includes(\"raw\") || n.includes(\"text\")) value = rawText;\n    }\n\n    value = coerce(value, field);\n    if (value !== undefined) out[name] = value;\n  }\n\n  return out;\n}\n\nfunction buildLineInput(fields, line, doc, documentId) {\n  const out = {};\n\n  for (const field of fields) {\n    const name = field.name;\n    const n = name.toLowerCase();\n\n    if ([\"id\", \"nodeid\", \"createdat\", \"updatedat\"].includes(n)) continue;\n\n    let value = getAny(line, [name]);\n\n    if (value === undefined) {\n      if (n === \"documentid\" || n === \"shipmentdocumentid\") value = documentId;\n      else if (n.includes(\"product\") \u0026\u0026 n.includes(\"code\")) value = line.productCode || line.itemCode || line.sku || \"UNKNOWN\";\n      else if (n.includes(\"product\") \u0026\u0026 n.includes(\"description\")) value = line.productDescription || line.description || \"\";\n      else if (n.includes(\"description\")) value = line.productDescription || line.description || \"\";\n      else if (n.includes(\"quantity\") || n === \"qty\") value = line.quantity || \"1\";\n      else if (n.includes(\"serial\")) value = line.serialNumber || line.serial || \"\";\n      else if (n.includes(\"shipment\") \u0026\u0026 n.includes(\"ref\")) value = line.shipmentRef || doc.shipmentRef || \"\";\n      else if (n.includes(\"customer\") \u0026\u0026 n.includes(\"po\")) value = line.customerPo || doc.customerPo || \"\";\n      else if (n.includes(\"unit\") \u0026\u0026 n.includes(\"price\")) value = line.unitPrice || \"\";\n      else if (n.includes(\"discount\")) value = line.discount || \"\";\n      else if (n.includes(\"total\")) value = line.lineTotal || line.total || \"\";\n    }\n\n    value = coerce(value, field);\n    if (value !== undefined) out[name] = value;\n  }\n\n  return out;\n}\n\nasync function insertRow(spec, row) {\n  const mutation = `\n    mutation($input: ${spec.outerInputType}!) {\n      ${spec.mutationName}(input: $input) {\n        ${spec.payloadField} {\n          id\n        }\n      }\n    }\n  `;\n\n  const variables = {\n    input: {\n      [spec.rowFieldName]: row\n    }\n  };\n\n  const data = await gql(mutation, variables);\n  const inserted = data?.[spec.mutationName]?.[spec.payloadField];\n\n  if (!inserted?.id) {\n    throw new Error(`Insert failed for ${spec.mutationName}: ${JSON.stringify(data)}`);\n  }\n\n  return inserted.id;\n}\n\nfunction extractJson(text) {\n  const fenced = text.match(/```(?:json)?\\s*([\\s\\S]*?)```/i);\n  const candidate = fenced ? fenced[1] : text.slice(text.indexOf(\"{\"), text.lastIndexOf(\"}\") + 1);\n\n  if (!candidate || !candidate.trim().startsWith(\"{\")) {\n    throw new Error(\"LLM did not return JSON. Raw output: \" + text.slice(0, 1200));\n  }\n\n  return JSON.parse(candidate);\n}\n\nasync function extractWithQwen(sourceFile, documentText) {\n  const prompt = `\nExtract shipment data from this document.\n\nReturn ONLY valid JSON, no markdown, with this shape:\n\n{\n  \"document\": {\n    \"sourceFile\": \"string\",\n    \"documentType\": \"shipment\",\n    \"shipmentRef\": \"string\",\n    \"customerPo\": \"string\",\n    \"customerName\": \"string\",\n    \"invoiceNumber\": \"string\",\n    \"shipmentDate\": \"string\"\n  },\n  \"lines\": [\n    {\n      \"productCode\": \"string\",\n      \"productDescription\": \"string\",\n      \"quantity\": \"string\",\n      \"serialNumber\": \"string\",\n      \"shipmentRef\": \"string\",\n      \"customerPo\": \"string\",\n      \"unitPrice\": \"string\",\n      \"discount\": \"string\",\n      \"lineTotal\": \"string\"\n    }\n  ]\n}\n\nRules:\n- JSON only.\n- Missing values must be empty strings.\n- Keep quantities as strings.\n- Copy document-level shipmentRef and customerPo to each line when possible.\n\nSource file: ${sourceFile}\n\nDocument text:\n${documentText.slice(0, 30000)}\n`;\n\n  const response = await postJson(CFG.dmrUrl, {\n    model: CFG.model,\n    messages: [\n      {\n        role: \"system\",\n        content: \"You extract structured shipment data. Return valid JSON only.\"\n      },\n      {\n        role: \"user\",\n        content: prompt\n      }\n    ],\n    max_tokens: CFG.maxTokens,\n    temperature: 0,\n    stream: false\n  });\n\n  const content = response?.choices?.[0]?.message?.content || \"\";\n  const extracted = extractJson(content);\n\n  if (!Array.isArray(extracted.lines) || extracted.lines.length === 0) {\n    throw new Error(\"No shipment lines extracted. Extracted JSON: \" + JSON.stringify(extracted));\n  }\n\n  return extracted;\n}\n\nconst item = $input.first().json;\n\nconst sourceFile = item.sourceFile || item.fileName || item.filename || \"manual-input.txt\";\nconst documentText = item.documentText || item.text || item.rawText || \"\";\n\nif (!documentText || !String(documentText).trim()) {\n  throw new Error(\"No documentText/text/rawText found on input item.\");\n}\n\nconst extracted = await extractWithQwen(sourceFile, String(documentText));\n\nextracted.document = extracted.document || {};\nextracted.document.sourceFile = extracted.document.sourceFile || sourceFile;\n\nconst docSpec = await getCreateSpec(\"ShipmentDocument\");\nconst lineSpec = await getCreateSpec(\"ShipmentLine\");\n\nconst documentInput = buildDocumentInput(docSpec.rowFields, extracted, sourceFile, String(documentText));\nconst documentId = await insertRow(docSpec, documentInput);\n\nconst lineIds = [];\n\nfor (const line of extracted.lines) {\n  const lineInput = buildLineInput(lineSpec.rowFields, line, extracted.document, documentId);\n  const lineId = await insertRow(lineSpec, lineInput);\n  lineIds.push(lineId);\n}\n\nconst readCheck = await gql(\n  `query {\n    allShipmentLines(first: 10, orderBy: ID_DESC) {\n      nodes {\n        id\n        documentId\n        productCode\n        productDescription\n        quantity\n        serialNumber\n        shipmentRef\n        customerPo\n      }\n    }\n  }`\n);\n\nconst firstLine = extracted.lines[0] || {};\n\nreturn [\n  {\n    json: {\n      ok: true,\n      sourceFile,\n      documentId,\n      lineIds,\n      insertedLines: lineIds.length,\n      extracted,\n      readCheck: readCheck.allShipmentLines.nodes,\n      message:\n        `Shipment extraction OK\\n` +\n        `Source: ${sourceFile}\\n` +\n        `Document ID: ${documentId}\\n` +\n        `Lines inserted: ${lineIds.length}\\n` +\n        `First product: ${firstLine.productCode || \"\"}\\n` +\n        `First description: ${firstLine.productDescription || \"\"}\\n` +\n        `First serial: ${firstLine.serialNumber || \"\"}`\n    }\n  }\n];"
+                                     },
+                      "id":  "process-shipment",
+                      "name":  "Tika qwen Postgres PostGraphile WAHA",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       600,
+                                       0
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "http://waha:3000/api/sendText",
+                                         "sendHeaders":  true,
+                                         "headerParameters":  {
+                                                                  "parameters":  [
+                                                                                     {
+                                                                                         "name":  "X-Api-Key",
+                                                                                         "value":  "change-this-waha-api-key"
+                                                                                     }
+                                                                                 ]
+                                                              },
+                                         "sendBody":  true,
+                                         "contentType":  "json",
+                                         "bodyParameters":  {
+                                                                "parameters":  [
+                                                                                   {
+                                                                                       "name":  "session",
+                                                                                       "value":  "default"
+                                                                                   },
+                                                                                   {
+                                                                                       "name":  "chatId",
+                                                                                       "value":  "31613717081@c.us"
+                                                                                   },
+                                                                                   {
+                                                                                       "name":  "text",
+                                                                                       "value":  "={{ $json.message }}"
+                                                                                   }
+                                                                               ]
+                                                            },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "waha-confirmation",
+                      "name":  "WAHA Confirmation",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       920,
+                                       0
+                                   ]
+                  }
+              ],
+    "connections":  {
+                        "Manual Trigger":  {
+                                               "main":  [
+                                                            [
+                                                                {
+                                                                    "node":  "Demo Shipment Input",
+                                                                    "type":  "main",
+                                                                    "index":  0
+                                                                }
+                                                            ]
+                                                        ]
+                                           },
+                        "Demo Shipment Input":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Tika qwen Postgres PostGraphile WAHA",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "Tika qwen Postgres PostGraphile WAHA":  {
+                                                                     "main":  [
+                                                                                  [
+                                                                                      {
+                                                                                          "node":  "WAHA Confirmation",
+                                                                                          "type":  "main",
+                                                                                          "index":  0
+                                                                                      }
+                                                                                  ]
+                                                                              ]
+                                                                 }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1"
+                 }
+}

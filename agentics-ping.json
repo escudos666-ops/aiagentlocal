@@ -1,0 +1,42 @@
+{
+  "name": "Agentics - Ping",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agentics-ping",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { ok: true, message: 'n8n webhook works', received: $json.body || $json } }];"
+      },
+      "id": "Code",
+      "name": "Return Ping",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Return Ping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

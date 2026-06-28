@@ -48,3 +48,18 @@ export const captures = sqliteTable("captures", {
   }).notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const agentRuns = sqliteTable("agent_runs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerEmail: text("owner_email").notNull(),
+  requestText: text("request_text").notNull(),
+  intent: text("intent").notNull().default("question"),
+  route: text("route").notNull().default("unconfigured"),
+  status: text("status", { enum: ["completed", "failed", "needs_confirmation"] })
+    .notNull()
+    .default("completed"),
+  responseText: text("response_text").notNull().default(""),
+  sourcesJson: text("sources_json").notNull().default("[]"),
+  rawJson: text("raw_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

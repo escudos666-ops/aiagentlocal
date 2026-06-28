@@ -1,0 +1,436 @@
+﻿name: agentics
+
+x-gpu-deploy: &gpu-deploy
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          count: all
+          capabilities: [gpu]
+
+x-common-env: &common-env
+  TZ: Europe/Amsterdam
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    gpus: all
+    deploy: *gpu-deploy
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      <<: *common-env
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      OLLAMA_HOST: 0.0.0.0
+      OLLAMA_KEEP_ALIVE: 30m
+      OLLAMA_FLASH_ATTENTION: "1"
+      OLLAMA_NUM_PARALLEL: "2"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    ports:
+      - "127.0.0.1:3000:8080"
+    volumes:
+      - open-webui_data:/app/backend/data
+    environment:
+      <<: *common-env
+      WEBUI_NAME: Agentics Personal Assistant
+      WEBUI_URL: http://127.0.0.1:3000
+      WEBUI_ADMIN_EMAIL: ${OPENWEBUI_ADMIN_EMAIL:-admin@local}
+      WEBUI_ADMIN_PASSWORD: ${OPENWEBUI_ADMIN_PASSWORD:-change-this-openwebui-password}
+      WEBUI_ADMIN_NAME: ${OPENWEBUI_ADMIN_NAME:-Martin}
+      ENABLE_SIGNUP: "false"
+      ENABLE_OLLAMA_API: "true"
+      OLLAMA_BASE_URL: http://ollama:11434
+      MCP_INITIALIZE_TIMEOUT: "20"
+      TOOL_SERVER_CONNECTIONS: >-
+        [{"url":"http://agentics-mcp:8766/mcp","path":"","type":"mcp","auth_type":"none","headers":{},"key":"","config":{"enable":true,"access_grants":[{"principal_type":"user","principal_id":"*","permission":"read"}]},"info":{"id":"agentics_mcp","name":"Agentics MCP","description":"Local Agentics MCP tools for service health checks and Agentics automations."}}]
+      TASK_MODEL: ${TASK_MODEL:-llama3.1:latest}
+      DEFAULT_MODELS: ${DEFAULT_MODELS:-agentics-assistant:latest}
+      DEFAULT_PINNED_MODELS: ${DEFAULT_PINNED_MODELS:-agentics-assistant:latest,llama3.1:latest,qwen2.5-coder:7b,llama3.2:3b}
+    depends_on:
+      - ollama
+      - agentics-mcp
+      - open-terminal
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  agentics-mcp:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: agentics-mcp
+    command: ["python", "/app/mcp/agentics_mcp_server.py"]
+    ports:
+      - "127.0.0.1:8766:8766"
+    volumes:
+      - ./mcp/agentics_mcp_server.py:/app/mcp/agentics_mcp_server.py:ro
+    environment:
+      <<: *common-env
+      MCP_NAME: Agentics MCP
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8766"
+      MCP_PATH: /mcp
+      N8N_CHAT_URL: http://n8n:5678/webhook/agentics-chat
+      N8N_WHATSAPP_URL: http://n8n:5678/webhook/agentics-whatsapp-send
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8766/health', timeout=5).status == 200 else 1)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  agentics-tools-api:
+    build:
+      context: ./agentics-tools-api
+      dockerfile: Dockerfile
+    container_name: agentics-tools-api
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      <<: *common-env
+      OLLAMA_BASE_URL: http://ollama:11434
+      AGENTICS_DEFAULT_AGENT_MODEL: ${AGENTICS_DEFAULT_AGENT_MODEL:-agentics-assistant:latest}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - ollama
+      - open-webui
+      - agentics-mcp
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  open-terminal:
+    image: ghcr.io/open-webui/open-terminal:latest
+    container_name: open-terminal
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - open_terminal_data:/home/user
+      - ./python-workspace:/home/user/workspace
+    environment:
+      <<: *common-env
+      OPEN_TERMINAL_API_KEY: ${OPEN_TERMINAL_API_KEY:-agentics-terminal-key}
+      OPEN_TERMINAL_MAX_SESSIONS: "8"
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      <<: *common-env
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret_password}
+      POSTGRES_DB: ${POSTGRES_DB:-project_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-admin} -d $${POSTGRES_DB:-project_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      <<: *common-env
+      GENERIC_TIMEZONE: Europe/Amsterdam
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: "5432"
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-project_db}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-admin}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-secret_password}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-change-this-n8n-encryption-key}
+      N8N_HOST: ${N8N_HOST:-127.0.0.1}
+      N8N_PORT: ${N8N_PORT:-5678}
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://127.0.0.1:5678/}
+      N8N_SECURE_COOKIE: "false"
+      N8N_RUNNERS_ENABLED: "true"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n-imports:/imports:ro
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  n8n-imports:
+    image: nginx:alpine
+    container_name: n8n-imports
+    ports:
+      - "127.0.0.1:8898:80"
+    volumes:
+      - ./n8n-imports:/usr/share/nginx/html:ro
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: chroma
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      <<: *common-env
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: /chroma/chroma
+      ANONYMIZED_TELEMETRY: "FALSE"
+    volumes:
+      - chroma_data:/chroma/chroma
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  tika:
+    image: apache/tika:latest
+    container_name: tika
+    ports:
+      - "127.0.0.1:9998:9998"
+    environment:
+      <<: *common-env
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    environment:
+      <<: *common-env
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change-this-minio-password}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  waha:
+    image: devlikeapro/waha:latest
+    container_name: waha
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      <<: *common-env
+      WAHA_API_KEY: ${WAHA_API_KEY:-change-this-waha-api-key}
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME:-admin}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD:-change-this-waha-dashboard-password}
+      WHATSAPP_API_PORT: "3000"
+      WHATSAPP_RESTART_ALL_SESSIONS: "True"
+    volumes:
+      - waha_data:/app/.sessions
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  postgraphile:
+    image: graphile/postgraphile:latest
+    container_name: postgraphile
+    ports:
+      - "127.0.0.1:5000:5000"
+    command:
+      [
+        "--connection",
+        "postgres://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-secret_password}@postgres:5432/${POSTGRES_DB:-project_db}",
+        "--schema",
+        "public",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "5000",
+        "--watch",
+        "--enhance-graphiql",
+        "--dynamic-json",
+        "--cors",
+        "--retry-on-init-fail"
+      ]
+    depends_on:
+      - postgres
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    ports:
+      - "127.0.0.1:8081:8080"
+    environment:
+      <<: *common-env
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      - postgres
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "127.0.0.1:3002:3000"
+    environment:
+      <<: *common-env
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-this-grafana-password}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  python:
+    image: python:3.12-slim
+    container_name: python
+    working_dir: /workspace
+    volumes:
+      - ./python-workspace:/workspace
+    command: sleep infinity
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  node18:
+    image: node:18-alpine
+    container_name: agentics-node18
+    working_dir: /workspace
+    volumes:
+      - ./python-workspace:/workspace
+    command: sleep infinity
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  node24:
+    image: node:24-slim
+    container_name: agentics-node24
+    working_dir: /workspace
+    volumes:
+      - ./python-workspace:/workspace
+    command: sleep infinity
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  langchain:
+    image: langchain/langchain:latest
+    container_name: langchain
+    working_dir: /workspace
+    volumes:
+      - ./python-workspace:/workspace
+    command: sleep infinity
+    environment:
+      <<: *common-env
+      OLLAMA_BASE_URL: http://ollama:11434
+      CHROMA_URL: http://chroma:8000
+      TIKA_URL: http://tika:9998
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  gateway:
+    image: nginx:alpine
+    container_name: agentics-gateway
+    ports:
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:8088:8088"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - open-webui
+      - n8n
+      - minio
+      - adminer
+      - postgraphile
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  gpu-check:
+    image: nvidia/cuda:12.5.0-base-ubuntu22.04
+    container_name: gpu-check
+    profiles:
+      - gpu-test
+    gpus: all
+    deploy: *gpu-deploy
+    environment:
+      <<: *common-env
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    command: ["nvidia-smi"]
+    networks:
+      - agentnet
+
+networks:
+  agentnet:
+    name: agentics_agentnet
+    driver: bridge
+
+volumes:
+  ollama_data:
+  open-webui_data:
+  open_terminal_data:
+  postgres_data:
+  redis_data:
+  n8n_data:
+  chroma_data:
+  minio_data:
+  waha_data:
+  grafana_data:

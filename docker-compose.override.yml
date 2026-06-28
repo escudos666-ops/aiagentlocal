@@ -1,1 +1,129 @@
-﻿services: {}
+﻿services:
+  postgraphile:
+    image: graphile/postgraphile:latest
+    container_name: postgraphile
+    profiles:
+      - data
+      - extras
+    ports:
+      - "127.0.0.1:5000:5000"
+    command:
+      [
+        "--connection",
+        "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}",
+        "--schema",
+        "public",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "5000",
+        "--watch",
+        "--enhance-graphiql",
+        "--dynamic-json",
+        "--cors",
+        "--retry-on-init-fail"
+      ]
+    depends_on:
+      - postgres
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    profiles:
+      - extras
+      - monitoring
+    ports:
+      - "127.0.0.1:3002:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  node24:
+    image: node:24-slim
+    container_name: agentics-node24
+    profiles:
+      - extras
+      - dev
+    working_dir: /workspace
+    volumes:
+      - ./python-workspace:/workspace
+    command: sleep infinity
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  node18:
+    image: node:18-alpine
+    container_name: agentics-node18
+    profiles:
+      - extras
+      - dev
+    working_dir: /workspace
+    volumes:
+      - ./python-workspace:/workspace
+    command: sleep infinity
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  langchain:
+    image: langchain/langchain:latest
+    container_name: langchain
+    profiles:
+      - extras
+      - agents
+    working_dir: /workspace
+    volumes:
+      - ./python-workspace:/workspace
+    command: sleep infinity
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - CHROMA_URL=http://chroma:8000
+      - TIKA_URL=http://tika:9998
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  pytorch:
+    image: pytorch/pytorch:latest
+    container_name: pytorch
+    profiles:
+      - ml
+      - gpu
+    working_dir: /workspace
+    volumes:
+      - ./python-workspace:/workspace
+      - ./huggingface-cache:/root/.cache/huggingface
+    command: sleep infinity
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  cuda:
+    image: nvidia/cuda:12.4.1-base-ubuntu22.04
+    container_name: cuda
+    profiles:
+      - gpu
+    working_dir: /workspace
+    volumes:
+      - ./python-workspace:/workspace
+    command: sleep infinity
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+volumes:
+  grafana_data:

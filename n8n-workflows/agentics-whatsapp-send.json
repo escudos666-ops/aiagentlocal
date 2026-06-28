@@ -1,0 +1,83 @@
+﻿{
+  "id": "agentics-whatsapp-send",
+  "name": "Agentics - WhatsApp Send",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agentics-whatsapp-send",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "agentics-whatsapp-webhook",
+      "name": "Agentics WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://waha:3000/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "change-this-waha-api-key"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ JSON.stringify({ session: $json.session || 'default', chatId: $json.chatId || $json.to, text: $json.text || $json.message }) }}",
+        "options": {}
+      },
+      "id": "agentics-waha-request",
+      "name": "Send WAHA Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, source: 'waha', result: $json }) }}",
+        "options": {}
+      },
+      "id": "agentics-waha-response",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [800, 300]
+    }
+  ],
+  "connections": {
+    "Agentics WhatsApp Webhook": {
+      "main": [
+        [
+          {
+            "node": "Send WAHA Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WAHA Message": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

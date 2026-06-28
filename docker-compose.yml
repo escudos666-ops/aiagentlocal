@@ -1,343 +1,139 @@
+﻿
 services:
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
-    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
     networks:
       - agentnet
-    ports:
-      - "127.0.0.1:11434:11434"
-    volumes:
-      - ./ollama/models:/root/.ollama/models
-    runtime: nvidia
-    environment:
-      OLLAMA_HOST: 0.0.0.0:11434
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: compute,utility
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: "4"
-          memory: 8G
-        reservations:
-          cpus: "2"
-          memory: 4G
-
-  pytorch-service:
-    build:
-      context: ./pytorch-service
-      dockerfile: Dockerfile
-    container_name: pytorch-service
     restart: unless-stopped
-    networks:
-      - agentnet
-    ports:
-      - "127.0.0.1:8888:8888"
-    environment:
-      CUDA_VISIBLE_DEVICES: "0"
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: compute,utility
-    runtime: nvidia
-    volumes:
-      - ./pytorch-service/models:/app/models
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8888/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
-    deploy:
-      resources:
-        limits:
-          cpus: '4'
-          memory: 8G
-        reservations:
-          cpus: '2'
-          memory: 4G
 
-  openwebui:
+  open-webui:
     image: ghcr.io/open-webui/open-webui:main
-    container_name: openwebui
-    restart: unless-stopped
-    networks:
-      - agentnet
+    container_name: open-webui
     ports:
-      - "127.0.0.1:3000:8080"
-    runtime: nvidia
+      - "3000:8080"
+    volumes:
+      - open-webui_data:/app/backend/data
     environment:
-      OLLAMA_BASE_URL: http://ollama:11434
-      OLLAMA_API_BASE_URL: http://ollama:11434
-      DATABASE_URL: postgresql://admin:[REDACTED]@postgres:5432/agentdb
-      REDIS_URL: redis://redis:6379
-      CHROMA_API_HOST: chroma
-      CHROMA_API_PORT: "8000"
-      S3_ENDPOINT_URL: http://minio:9000
-      S3_BUCKET_NAME: webui
-      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-admin}
-      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-admin123}
-      ENABLE_OLLAMA_API: "true"
-      OLLAMA_EMBEDDING_MODEL: nomic-embed-text
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: compute,utility
-      PYTORCH_SERVICE_URL: http://pytorch-service:8888
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - MCP_INITIALIZE_TIMEOUT=20
+      - 'TOOL_SERVER_CONNECTIONS=[{"url":"http://agentics-mcp:8766/mcp","path":"","type":"mcp","auth_type":"none","headers":{},"key":"","config":{"enable":true,"access_grants":[{"principal_type":"user","principal_id":"*","permission":"read"}]},"info":{"id":"agentics_mcp","name":"Agentics MCP","description":"Local Agentics MCP tools for service health checks and Agentics automations."}}]'
     depends_on:
       - ollama
-      - postgres
-      - redis
-      - chroma
-      - tika
-      - minio
-      - pytorch-service
-    volumes:
-      - ./config/webui:/app/backend/data
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 3G
-        reservations:
-          cpus: '1'
-          memory: 1536M
-
-  chroma:
-    image: ghcr.io/chroma-core/chroma:latest
-    container_name: chroma
-    restart: unless-stopped
+      - agentics-mcp
     networks:
       - agentnet
+    restart: unless-stopped
+
+  agentics-mcp:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: agentics-mcp
+    command: ["python", "/app/mcp/agentics_mcp_server.py"]
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8766:8766"
+    volumes:
+      - ./mcp/agentics_mcp_server.py:/app/mcp/agentics_mcp_server.py:ro
     environment:
-      IS_PERSISTENT: "True"
-      PERSIST_DIRECTORY: /chroma/data
-      ANONYMIZED_TELEMETRY: "false"
-    volumes:
-      - ./data/chroma:/chroma/data
+      - MCP_NAME=Agentics MCP
+      - MCP_HOST=0.0.0.0
+      - MCP_PORT=8766
+      - MCP_PATH=/mcp
+      - N8N_CHAT_URL=http://n8n:5678/webhook/agentics-chat
+      - N8N_WHATSAPP_URL=http://n8n:5678/webhook/agentics-whatsapp-send
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/127.0.0.1/8000'"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8766/health', timeout=5).status == 200 else 1)",
+        ]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 1G
-
-  tika:
-    image: apache/tika:latest
-    container_name: tika
-    restart: unless-stopped
+      start_period: 20s
     networks:
       - agentnet
-    ports:
-      - "127.0.0.1:9998:9998"
-    environment:
-      TIKA_CHILD_PROCESS_MEMORY: "512"
-    healthcheck:
-      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/127.0.0.1/9998'"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '1'
-          memory: 1G
-
-  redis:
-    image: redis:latest
-    container_name: redis
     restart: unless-stopped
-    networks:
-      - agentnet
-    ports:
-      - "127.0.0.1:6379:6379"
-    volumes:
-      - ./data/redis:/data
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 10s
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-
-  postgres:
-    image: postgres:15
-    container_name: postgres
-    restart: unless-stopped
-    networks:
-      - agentnet
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-admin}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
-      POSTGRES_DB: ${POSTGRES_DB:-agentdb}
-    ports:
-      - "127.0.0.1:5432:5432"
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-      - ./scripts/init-pgvector.sql:/docker-entrypoint-initdb.d/01-pgvector.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER:-admin}\" -d \"$${POSTGRES_DB:-agentdb}\""]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '1'
-          memory: 1G
-
-  minio:
-    image: minio/minio:latest
-    container_name: minio
-    restart: unless-stopped
-    networks:
-      - agentnet
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-admin123}
-    ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
-    volumes:
-      - ./data/minio:/data
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 1G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
 
   n8n:
     image: docker.n8n.io/n8nio/n8n:latest
     container_name: n8n
-    restart: unless-stopped
-    networks:
-      - agentnet
     ports:
-      - "127.0.0.1:5678:5678"
+      - "5678:5678"
     environment:
-      N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE:-false}
-      N8N_HOST: ${N8N_HOST:-localhost}
-      N8N_PORT: "5678"
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-project_db}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-admin}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-secret_password}
     volumes:
-      - ./data/n8n:/home/node/.n8n
+      - n8n_data:/home/node/.n8n
     depends_on:
       - postgres
-    deploy:
-      resources:
-        limits:
-          cpus: '1.5'
-          memory: 1536M
-        reservations:
-          cpus: '0.5'
-          memory: 512M
-
-  webui_preview:
-    build:
-      context: .
-      dockerfile: Dockerfile.ui
-    container_name: webui_preview
-    restart: unless-stopped
     networks:
       - agentnet
-    ports:
-      - "127.0.0.1:8088:80"
-    volumes:
-      - ./ui:/usr/share/nginx/html
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
-
-  pa-service:
-    build:
-      context: ./pa-service
-      dockerfile: Dockerfile
-    container_name: pa-service
     restart: unless-stopped
-    networks:
-      - agentnet
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
     ports:
-      - "127.0.0.1:8000:8000"
+      - "5432:5432"
     environment:
-      OLLAMA_URL: http://ollama:11434
-      OPENWEBUI_URL: http://openwebui:3000
-      N8N_URL: http://n8n:5678
-      BROWSER_USE_URL: http://browser-use-webui:7788
-      POSTGRES_URL: postgresql://admin:[REDACTED]@postgres:5432/agentdb
-      REDIS_URL: redis://redis:6379
-      MINIO_URL: http://minio:9000
-      CHROMA_URL: http://chroma:8000
-      WAHA_URL: http://waha:3000
-      PYTORCH_SERVICE_URL: http://pytorch-service:8888
-    depends_on:
-      - ollama
-      - openwebui
-      - n8n
-      - postgres
-      - redis
-      - minio
-      - chroma
-      - pytorch-service
+      - POSTGRES_USER=${POSTGRES_USER:-admin}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secret_password}
+      - POSTGRES_DB=${POSTGRES_DB:-project_db}
     volumes:
-      - ./pa-service/config.yaml:/app/config.yaml
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '1'
-          memory: 1G
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minio_admin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minio_secret_password}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - agentnet
+    restart: unless-stopped
 
 networks:
   agentnet:
     driver: bridge
+
+volumes:
+  ollama_data:
+  open-webui_data:
+  n8n_data:
+  postgres_data:
+  redis_data:
+  minio_data:

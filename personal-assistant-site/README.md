@@ -1,70 +1,39 @@
-# vinext-starter
+# Agentics Personal Assistant WebUI
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+This is a local-first WebUI for the Agentics Docker stack. It gives one place to see how Open WebUI, Ollama, MCP tools, n8n, WAHA, Browser Use, storage, vector memory, document parsing, and monitoring fit together as a personal assistant system.
 
-## Prerequisites
+## Run
 
-- Node.js `>=22.13.0`
-
-## Quick Start
+From the stack directory:
 
 ```bash
-npm install
-npm run dev
-npm run build
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml -f compose.yaml up -d --build personal-assistant-webui
 ```
 
-This starter does not use `wrangler.jsonc`.
+Then open:
 
-## Included Shape
-
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## Workspace Auth Headers
-
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```text
+http://localhost:8787
 ```
 
-## Useful Commands
+## Optional workflow dispatch
 
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+Set `N8N_AGENT_WEBHOOK_URL` if you want the command bar to send tasks into an n8n webhook:
 
-## Learn More
+```env
+N8N_AGENT_WEBHOOK_URL=http://n8n:5678/webhook/agentics-chat
+```
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+Without that variable, the UI still works as a stack map and health console.
+
+## Optional OpenAI MCP response route
+
+The OpenAI MCP Response panel calls `/api/openai-response`. Configure it with runtime environment variables; do not commit secret values:
+
+```env
+OPENAI_API_KEY=
+OPENAI_RESPONSES_MODEL=gpt-5.4-mini
+PIPEDREAM_MCP_SERVER_URL=https://remote.mcp.pipedream.net
+PIPEDREAM_MCP_APP_SLUG=
+PIPEDREAM_MCP_AUTHORIZATION=
+```

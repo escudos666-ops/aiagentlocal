@@ -1,0 +1,50 @@
+{
+    "name":  "Shipment E2E - qwen2.5 to Postgres and WAHA",
+    "nodes":  [
+                  {
+                      "parameters":  {
+
+                                     },
+                      "id":  "manual-trigger",
+                      "name":  "Manual Trigger",
+                      "type":  "n8n-nodes-base.manualTrigger",
+                      "typeVersion":  1,
+                      "position":  [
+                                       260,
+                                       300
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const DMR_URL = \"http://host.docker.internal:12434/api/chat\";\nconst POSTGRAPHILE_URL = \"http://postgraphile:5000/graphql\";\nconst WAHA_URL = \"http://waha:3000/api/sendText\";\nconst WAHA_KEY = \"change-this-waha-api-key\";\nconst WAHA_CHAT_ID = \"31613717081@c.us\";\n\nconst sampleText = `\nShipment Notice\n\nSource file: sample-shipment.txt\nShipment reference: SHIP-E2E-001\nInvoice number: INV-E2E-001\nCustomer: Admetec Test Customer\nCustomer PO: PO-E2E-001\n\nLines:\n1. Product code: ADM-FACE-001\n   Description: Admetec face shield test product\n   Quantity: 2\n   Unit price: 125.50\n   Discount: 0\n   Line total: 251.00\n   Serial number: SN-E2E-001\n\n2. Product code: ADM-LAMP-002\n   Description: Admetec lamp module test product\n   Quantity: 1\n   Unit price: 499.00\n   Discount: 10\n   Line total: 489.00\n   Serial number: SN-E2E-002\n`;\n\nasync function postJson(url, body, headers = {}) {\n  const response = await fetch(url, {\n    method: \"POST\",\n    headers: {\n      \"Content-Type\": \"application/json\",\n      ...headers,\n    },\n    body: JSON.stringify(body),\n  });\n\n  const text = await response.text();\n\n  if (!response.ok) {\n    throw new Error(`${url} failed with HTTP ${response.status}: ${text}`);\n  }\n\n  try {\n    return JSON.parse(text);\n  } catch {\n    return { raw: text };\n  }\n}\n\nfunction firstJsonObject(text) {\n  const match = text.match(/\\{[\\s\\S]*\\}/);\n  if (!match) {\n    throw new Error(\"No JSON object found in model response: \" + text);\n  }\n  return JSON.parse(match[0]);\n}\n\nfunction numberOrNull(value) {\n  if (value === null || value === undefined || value === \"\") return null;\n  const n = Number(value);\n  return Number.isFinite(n) ? n : null;\n}\n\nconst prompt = `\nExtract shipment data from the text below.\n\nReturn JSON only. No markdown. No explanation.\n\nSchema:\n{\n  \"document\": {\n    \"source_file\": \"string\",\n    \"source_type\": \"string\",\n    \"shipment_ref\": \"string\",\n    \"invoice_number\": \"string\",\n    \"customer_name\": \"string\",\n    \"customer_po\": \"string\",\n    \"extracted_text\": \"string\"\n  },\n  \"lines\": [\n    {\n      \"product_code\": \"string\",\n      \"product_description\": \"string\",\n      \"quantity\": number,\n      \"unit_price\": number,\n      \"discount\": number,\n      \"line_total\": number,\n      \"serial_number\": \"string\",\n      \"shipment_ref\": \"string\",\n      \"customer_po\": \"string\"\n    }\n  ]\n}\n\nText:\n${sampleText}\n`;\n\nconst dmrResponse = await postJson(DMR_URL, {\n  model: \"docker.io/ai/qwen2.5:latest\",\n  messages: [\n    {\n      role: \"system\",\n      content: \"You extract shipment, invoice, PO, product line, quantity, price and serial data into strict JSON.\"\n    },\n    {\n      role: \"user\",\n      content: prompt\n    }\n  ],\n  stream: false\n});\n\nconst modelText = dmrResponse?.message?.content || \"\";\nlet extracted;\n\ntry {\n  extracted = firstJsonObject(modelText);\n} catch (error) {\n  extracted = {\n    document: {\n      source_file: \"sample-shipment.txt\",\n      source_type: \"manual-e2e-test\",\n      shipment_ref: \"SHIP-E2E-001\",\n      invoice_number: \"INV-E2E-001\",\n      customer_name: \"Admetec Test Customer\",\n      customer_po: \"PO-E2E-001\",\n      extracted_text: sampleText\n    },\n    lines: [\n      {\n        product_code: \"ADM-FACE-001\",\n        product_description: \"Admetec face shield test product\",\n        quantity: 2,\n        unit_price: 125.50,\n        discount: 0,\n        line_total: 251.00,\n        serial_number: \"SN-E2E-001\",\n        shipment_ref: \"SHIP-E2E-001\",\n        customer_po: \"PO-E2E-001\"\n      },\n      {\n        product_code: \"ADM-LAMP-002\",\n        product_description: \"Admetec lamp module test product\",\n        quantity: 1,\n        unit_price: 499.00,\n        discount: 10,\n        line_total: 489.00,\n        serial_number: \"SN-E2E-002\",\n        shipment_ref: \"SHIP-E2E-001\",\n        customer_po: \"PO-E2E-001\"\n      }\n    ]\n  };\n}\n\nconst doc = extracted.document || {};\nconst lines = Array.isArray(extracted.lines) ? extracted.lines : [];\n\nconst createDocumentMutation = `\nmutation CreateShipmentDocument($input: CreateShipmentDocumentInput!) {\n  createShipmentDocument(input: $input) {\n    shipmentDocument {\n      id\n      sourceFile\n      shipmentRef\n      invoiceNumber\n      customerPo\n    }\n  }\n}\n`;\n\nconst documentResult = await postJson(POSTGRAPHILE_URL, {\n  query: createDocumentMutation,\n  variables: {\n    input: {\n      shipmentDocument: {\n        sourceFile: doc.source_file || \"sample-shipment.txt\",\n        sourceType: doc.source_type || \"manual-e2e-test\",\n        shipmentRef: doc.shipment_ref || \"SHIP-E2E-001\",\n        invoiceNumber: doc.invoice_number || \"INV-E2E-001\",\n        customerName: doc.customer_name || \"Admetec Test Customer\",\n        customerPo: doc.customer_po || \"PO-E2E-001\",\n        extractedText: doc.extracted_text || sampleText\n      }\n    }\n  }\n});\n\nif (documentResult.errors) {\n  throw new Error(\"PostGraphile document insert failed: \" + JSON.stringify(documentResult.errors));\n}\n\nconst documentId = Number(documentResult.data.createShipmentDocument.shipmentDocument.id);\n\nconst createLineMutation = `\nmutation CreateShipmentLine($input: CreateShipmentLineInput!) {\n  createShipmentLine(input: $input) {\n    shipmentLine {\n      id\n      productCode\n      productDescription\n      quantity\n      serialNumber\n    }\n  }\n}\n`;\n\nconst insertedLines = [];\n\nfor (const line of lines) {\n  const lineResult = await postJson(POSTGRAPHILE_URL, {\n    query: createLineMutation,\n    variables: {\n      input: {\n        shipmentLine: {\n          documentId,\n          productCode: line.product_code || null,\n          productDescription: line.product_description || null,\n          quantity: numberOrNull(line.quantity),\n          unitPrice: numberOrNull(line.unit_price),\n          discount: numberOrNull(line.discount),\n          lineTotal: numberOrNull(line.line_total),\n          serialNumber: line.serial_number || null,\n          shipmentRef: line.shipment_ref || doc.shipment_ref || null,\n          customerPo: line.customer_po || doc.customer_po || null\n        }\n      }\n    }\n  });\n\n  if (lineResult.errors) {\n    throw new Error(\"PostGraphile line insert failed: \" + JSON.stringify(lineResult.errors));\n  }\n\n  insertedLines.push(lineResult.data.createShipmentLine.shipmentLine);\n}\n\nconst whatsappText =\n  `Shipment E2E OK\\n` +\n  `Document ID: ${documentId}\\n` +\n  `Shipment: ${doc.shipment_ref || \"SHIP-E2E-001\"}\\n` +\n  `Invoice: ${doc.invoice_number || \"INV-E2E-001\"}\\n` +\n  `Lines saved: ${insertedLines.length}`;\n\nconst wahaResult = await postJson(WAHA_URL, {\n  session: \"default\",\n  chatId: WAHA_CHAT_ID,\n  text: whatsappText\n}, {\n  \"X-Api-Key\": WAHA_KEY\n});\n\nreturn [\n  {\n    json: {\n      ok: true,\n      documentId,\n      shipmentRef: doc.shipment_ref || \"SHIP-E2E-001\",\n      invoiceNumber: doc.invoice_number || \"INV-E2E-001\",\n      linesSaved: insertedLines.length,\n      extracted,\n      insertedLines,\n      wahaMessageBody: whatsappText,\n      wahaResponse: wahaResult\n    }\n  }\n];"
+                                     },
+                      "id":  "extract-store-notify",
+                      "name":  "Extract with qwen2.5, Store, Notify",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       560,
+                                       300
+                                   ]
+                  }
+              ],
+    "connections":  {
+                        "Manual Trigger":  {
+                                               "main":  [
+                                                            {
+                                                                "node":  "Extract with qwen2.5, Store, Notify",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                           }
+                    },
+    "settings":  {
+
+                 },
+    "staticData":  null,
+    "pinData":  {
+
+                },
+    "active":  false
+}

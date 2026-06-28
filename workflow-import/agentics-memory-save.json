@@ -1,0 +1,44 @@
+{
+  "name": "Agentics - Memory Save",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agentics-memory-save",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "agentics-memory-save-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\n\nconst content = body.content || body.memory || body.text || body.message || '';\nif (!content || !content.trim()) {\n  return [{ json: { ok: false, error: 'content is required' } }];\n}\n\nlet tags = [];\nif (Array.isArray(body.tags)) {\n  tags = body.tags;\n} else if (typeof body.tags === 'string') {\n  tags = body.tags.split(',').map(t => t.trim()).filter(Boolean);\n}\n\nconst variables = {\n  kind: body.kind || 'note',\n  title: body.title || null,\n  content,\n  tags,\n  importance: Number(body.importance || 3),\n  source: body.source || 'openwebui'\n};\n\nconst query = `\nmutation SaveMemory(\n  $kind: String!,\n  $title: String,\n  $content: String!,\n  $tags: [String],\n  $importance: Int,\n  $source: String\n) {\n  createAgenticsMemory(input: {\n    agenticsMemory: {\n      kind: $kind,\n      title: $title,\n      content: $content,\n      tags: $tags,\n      importance: $importance,\n      source: $source\n    }\n  }) {\n    agenticsMemory {\n      id\n      kind\n      title\n      content\n      tags\n      importance\n      source\n      createdAt\n      updatedAt\n    }\n  }\n}\n`;\n\nconst res = await fetch('http://postgraphile:5000/graphql', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ query, variables })\n});\n\nconst data = await res.json();\n\nif (data.errors) {\n  return [{ json: { ok: false, errors: data.errors } }];\n}\n\nreturn [{\n  json: {\n    ok: true,\n    action: 'memory_saved',\n    memory: data.data.createAgenticsMemory.agenticsMemory\n  }\n}];"
+      },
+      "id": "agentics-memory-save-code",
+      "name": "Save Memory",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [320, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Save Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

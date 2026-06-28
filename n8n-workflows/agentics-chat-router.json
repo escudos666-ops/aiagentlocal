@@ -1,0 +1,74 @@
+﻿{
+  "id": "agentics-chat-router",
+  "name": "Agentics - Chat Router",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agentics-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "agentics-chat-webhook",
+      "name": "Agentics Chat Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ollama:11434/api/generate",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $json.model || 'agentics-assistant:latest', prompt: $json.message || $json.prompt || '', stream: false, options: { temperature: Number($json.temperature || 0.4), num_ctx: Number($json.num_ctx || 4096), num_predict: Number($json.num_predict || 512) } }) }}",
+        "options": {}
+      },
+      "id": "agentics-ollama-request",
+      "name": "Ask Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, source: 'ollama', response: $json.response, model: $json.model, eval_count: $json.eval_count, total_duration: $json.total_duration }) }}",
+        "options": {}
+      },
+      "id": "agentics-chat-response",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [800, 300]
+    }
+  ],
+  "connections": {
+    "Agentics Chat Webhook": {
+      "main": [
+        [
+          {
+            "node": "Ask Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask Ollama": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

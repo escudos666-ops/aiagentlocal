@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Martin's Personal Assistant Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1>🤖 Martin PA</h1>
+        <span class="status-indicator" id="statusIndicator">●</span>
+      </div>
+      
+      <nav class="nav-menu">
+        <div class="nav-item active" data-tab="dashboard">
+          <span class="icon">📊</span>
+          <span class="label">Dashboard</span>
+        </div>
+        <div class="nav-item" data-tab="email">
+          <span class="icon">📧</span>
+          <span class="label">Office 365</span>
+          <span class="badge" id="emailBadge">0</span>
+        </div>
+        <div class="nav-item" data-tab="whatsapp">
+          <span class="icon">💬</span>
+          <span class="label">WhatsApp</span>
+          <span class="badge" id="whatsappBadge">0</span>
+        </div>
+        <div class="nav-item" data-tab="tasks">
+          <span class="icon">✓</span>
+          <span class="label">Tasks</span>
+          <span class="badge" id="taskBadge">0</span>
+        </div>
+        <div class="nav-item" data-tab="memory">
+          <span class="icon">🧠</span>
+          <span class="label">Memory</span>
+        </div>
+        <div class="nav-item" data-tab="ai-chat">
+          <span class="icon">💭</span>
+          <span class="label">AI Chat</span>
+        </div>
+        <div class="nav-item" data-tab="integrations">
+          <span class="icon">🔗</span>
+          <span class="label">Integrations</span>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-profile">
+          <div class="avatar">M</div>
+          <div class="user-info">
+            <p class="username">Martin</p>
+            <p class="status">Active</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Header -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h2 id="pageTitle">Dashboard</h2>
+        </div>
+        <div class="topbar-right">
+          <input type="search" class="search-box" placeholder="Search..." id="globalSearch">
+          <button class="btn-icon" id="notificationBtn">🔔 <span id="notifCount">0</span></button>
+          <button class="btn-icon" id="settingsBtn">⚙️</button>
+        </div>
+      </header>
+
+      <!-- Tab Content -->
+      <div class="content-area">
+        <!-- Dashboard Tab -->
+        <section class="tab-content active" id="dashboard-tab">
+          <div class="dashboard-grid">
+            <!-- Stats -->
+            <div class="stats-row">
+              <div class="stat-card">
+                <div class="stat-icon">📧</div>
+                <div class="stat-content">
+                  <p class="stat-label">Unread Emails</p>
+                  <p class="stat-value" id="statEmails">0</p>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">💬</div>
+                <div class="stat-content">
+                  <p class="stat-label">New Messages</p>
+                  <p class="stat-value" id="statMessages">0</p>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">✓</div>
+                <div class="stat-content">
+                  <p class="stat-label">Today's Tasks</p>
+                  <p class="stat-value" id="statTasks">0</p>
+                </div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">🧠</div>
+                <div class="stat-content">
+                  <p class="stat-label">Memory Items</p>
+                  <p class="stat-value" id="statMemory">0</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- AI Assistant Widget -->
+            <div class="widget-row">
+              <div class="widget full-width">
+                <div class="widget-header">
+                  <h3>🤖 Quick Assistant</h3>
+                </div>
+                <div class="widget-body">
+                  <div class="chat-preview" id="chatPreview">
+                    <p class="placeholder">Ask me anything...</p>
+                  </div>
+                  <div class="input-group">
+                    <input type="text" id="quickInput" placeholder="Type a command or question..." autocomplete="off">
+                    <button class="btn-primary" id="sendBtn">Send</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Services Status -->
+            <div class="widget-row">
+              <div class="widget">
+                <div class="widget-header">
+                  <h3>🔗 Services</h3>
+                </div>
+                <div class="widget-body">
+                  <div class="service-list" id="servicesList">
+                    <div class="service-item">
+                      <span class="service-name">Ollama AI</span>
+                      <span class="service-status" data-service="ollama">●</span>
+                    </div>
+                    <div class="service-item">
+                      <span class="service-name">Open WebUI</span>
+                      <span class="service-status" data-service="openwebui">●</span>
+                    </div>
+                    <div class="service-item">
+                      <span class="service-name">n8n</span>
+                      <span class="service-status" data-service="n8n">●</span>
+                    </div>
+                    <div class="service-item">
+                      <span class="service-name">PostgreSQL</span>
+                      <span class="service-status" data-service="postgres">●</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="widget">
+                <div class="widget-header">
+                  <h3>📈 Activity</h3>
+                </div>
+                <div class="widget-body">
+                  <canvas id="activityChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="widget full-width">
+              <div class="widget-header">
+                <h3>📋 Recent Activity</h3>
+              </div>
+              <div class="widget-body">
+                <div class="activity-feed" id="activityFeed">
+                  <div class="activity-item">
+                    <span class="activity-time">2 min ago</span>
+                    <span class="activity-text">Dashboard initialized</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Office 365 Email Tab -->
+        <section class="tab-content" id="email-tab">
+          <div class="page-header">
+            <h2>📧 Office 365 Email</h2>
+            <button class="btn-primary" id="refreshEmailBtn">Refresh</button>
+          </div>
+          
+          <div class="email-container">
+            <!-- Email List -->
+            <div class="email-list" id="emailList">
+              <div class="placeholder">Loading emails...</div>
+            </div>
+
+            <!-- Email Preview -->
+            <div class="email-preview" id="emailPreview">
+              <div class="placeholder">Select an email to read</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- WhatsApp Tab -->
+        <section class="tab-content" id="whatsapp-tab">
+          <div class="page-header">
+            <h2>💬 WhatsApp Messaging</h2>
+            <button class="btn-primary" id="newChatBtn">New Chat</button>
+          </div>
+
+          <div class="whatsapp-container">
+            <!-- Chat List -->
+            <div class="chat-list" id="chatList">
+              <div class="placeholder">Loading chats...</div>
+            </div>
+
+            <!-- Message Area -->
+            <div class="message-area" id="messageArea">
+              <div class="placeholder">Select a chat</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tasks Tab -->
+        <section class="tab-content" id="tasks-tab">
+          <div class="page-header">
+            <h2>✓ Task Management</h2>
+            <button class="btn-primary" id="newTaskBtn">+ New Task</button>
+          </div>
+
+          <div class="tasks-container">
+            <div class="task-filters">
+              <button class="filter-btn active" data-filter="all">All</button>
+              <button class="filter-btn" data-filter="today">Today</button>
+              <button class="filter-btn" data-filter="pending">Pending</button>
+              <button class="filter-btn" data-filter="completed">Completed</button>
+            </div>
+            <div class="task-list" id="taskList">
+              <div class="placeholder">No tasks yet</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Memory Tab -->
+        <section class="tab-content" id="memory-tab">
+          <div class="page-header">
+            <h2>🧠 Memory & Notes</h2>
+            <button class="btn-primary" id="newNoteBtn">+ New Note</button>
+          </div>
+
+          <div class="memory-container">
+            <div class="memory-search">
+              <input type="search" placeholder="Search notes..." id="memorySearch">
+            </div>
+            <div class="memory-list" id="memoryList">
+              <div class="placeholder">No notes yet</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- AI Chat Tab -->
+        <section class="tab-content" id="ai-chat-tab">
+          <div class="page-header">
+            <h2>💭 AI Chat (Ollama)</h2>
+          </div>
+
+          <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+              <div class="message bot-message">
+                <p>Hi! I'm Martin's Personal Assistant. How can I help you today?</p>
+              </div>
+            </div>
+            <div class="chat-input-area">
+              <input type="text" id="chatInput" placeholder="Ask me anything..." autocomplete="off">
+              <button class="btn-primary" id="chatSendBtn">Send</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Integrations Tab -->
+        <section class="tab-content" id="integrations-tab">
+          <div class="page-header">
+            <h2>🔗 Active Integrations</h2>
+          </div>
+
+          <div class="integrations-grid">
+            <div class="integration-card">
+              <h3>🦙 Ollama</h3>
+              <p>Local LLM inference engine</p>
+              <div class="integration-status" id="integration-ollama">Checking...</div>
+              <button class="btn-secondary">Configure</button>
+            </div>
+
+            <div class="integration-card">
+              <h3>🌐 Open WebUI</h3>
+              <p>Web interface for Ollama</p>
+              <div class="integration-status" id="integration-openwebui">Checking...</div>
+              <button class="btn-secondary">Open</button>
+            </div>
+
+            <div class="integration-card">
+              <h3>⚙️ n8n</h3>
+              <p>Workflow automation</p>
+              <div class="integration-status" id="integration-n8n">Checking...</div>
+              <button class="btn-secondary">Open</button>
+            </div>
+
+            <div class="integration-card">
+              <h3>🗄️ PostgreSQL</h3>
+              <p>Primary database</p>
+              <div class="integration-status" id="integration-postgres">Checking...</div>
+              <button class="btn-secondary">Query</button>
+            </div>
+
+            <div class="integration-card">
+              <h3>📨 Office 365</h3>
+              <p>Email integration</p>
+              <div class="integration-status" id="integration-office365">Configure</div>
+              <button class="btn-secondary">Connect</button>
+            </div>
+
+            <div class="integration-card">
+              <h3>💬 WhatsApp (WAHA)</h3>
+              <p>WhatsApp Web Automation</p>
+              <div class="integration-status" id="integration-waha">Checking...</div>
+              <button class="btn-secondary">Configure</button>
+            </div>
+
+            <div class="integration-card">
+              <h3>🎨 Chroma</h3>
+              <p>Vector database for embeddings</p>
+              <div class="integration-status" id="integration-chroma">Checking...</div>
+              <button class="btn-secondary">Configure</button>
+            </div>
+
+            <div class="integration-card">
+              <h3>🪣 MinIO</h3>
+              <p>S3-compatible storage</p>
+              <div class="integration-status" id="integration-minio">Checking...</div>
+              <button class="btn-secondary">Open</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modals -->
+  <div class="modal" id="settingsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-group">
+          <label>Office 365 API Key</label>
+          <input type="password" placeholder="Enter your Office 365 API key" id="office365ApiKey">
+        </div>
+        <div class="settings-group">
+          <label>WhatsApp Phone Number</label>
+          <input type="text" placeholder="Enter linked phone number" id="whatsappPhone">
+        </div>
+        <div class="settings-group">
+          <label>Theme</label>
+          <select id="themeSelect">
+            <option>Dark</option>
+            <option>Light</option>
+            <option>Auto</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeModal('settingsModal')">Cancel</button>
+        <button class="btn-primary" onclick="saveSettings()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -2,32 +2,47 @@
 .env
 .env.*
 !.env.example
+!.env*.example
 *.secret
 secrets/
 
 # Runtime state and local data
+backups/
 data/
+env-backups/
+huggingface-cache/
 postgres-data/
 config/webui/cache/
 config/webui/vector_db/
+config/webui/uploads/
 ollama/
 DockerDesktopWSL/
 browser-use-web-ui.zip
 ui_backup_*/
+.playwright-mcp/
+
+# Deprecated nested UI repo checkouts; keep local, do not use as root source.
+wbgui/
+web-ui/
 
 # Databases and generated files
 *.db
 *.db-*
 *.sqlite
 *.sqlite-*
+*.tar.gz
+*.tgz
 *.vhdx
 *.log
 *.zip
 *.bak
 *.bak*
+*.resolved.yaml
+docker-compose.*backup*.yml
+docker-compose.broken*.yml
 __pycache__/
+**/__pycache__/
 *.py[cod]
-config/webui/uploads/
 
 # Local command/output scratch files
 out.txt
@@ -35,9 +50,22 @@ dir
 wsl
 
 # Dependencies and OS/editor noise
+.venv/
+**/.venv/
+.codex/
+.vscode/
+dist/
+**/dist/
 node_modules/
 **/node_modules/
+playwright-report/
+**/playwright-report/
+test-results/
+**/test-results/
+test-reports/
 .vinext/
 **/.vinext/
+.wrangler/
+**/.wrangler/
 .DS_Store
 Thumbs.db

@@ -1,0 +1,61 @@
+﻿{
+  "name": "Agentics - Memory Save Postgres",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agentics-memory-save-pg",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "agentics-memory-save-pg-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [300, 300],
+      "webhookId": "agentics-memory-save-pg"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agentics_memory (text, metadata, source) VALUES ($1, $2::jsonb, $3) RETURNING id, text, metadata, source, created_at;",
+        "options": {
+          "queryReplacement": "={{ [$json.body.text, JSON.stringify($json.body.metadata || {}), $json.body.metadata?.source || 'n8n-webhook'] }}"
+        }
+      },
+      "id": "agentics-memory-save-pg-insert",
+      "name": "Insert Memory",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [560, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-agentics",
+          "name": "Postgres Agentics"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"ok\": true, \"tool\": \"agentics-memory-save-pg\", \"saved\": $json }",
+        "options": {}
+      },
+      "id": "agentics-memory-save-pg-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [820, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Insert Memory", "type": "main", "index": 0 }]]
+    },
+    "Insert Memory": {
+      "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

@@ -2,33 +2,58 @@
 .env
 .env.*
 !.env.example
+!.env*.example
 *.secret
 secrets/
 
 # Runtime state and local data
+backups/
 data/
+env-backups/
 postgres-data/
 config/webui/cache/
 config/webui/vector_db/
+config/webui/uploads/
 ollama/
 DockerDesktopWSL/
 browser-use-web-ui.zip
 ui_backup_*/
+
+# Deprecated nested UI repo checkouts; keep out of root build contexts.
+wbgui/
+web-ui/
 
 # Databases and generated files
 *.db
 *.db-*
 *.sqlite
 *.sqlite-*
+*.tar.gz
+*.tgz
 *.vhdx
 *.log
 *.zip
 *.bak
 *.bak*
+__pycache__/
+**/__pycache__/
 
 # Dependencies and OS/editor noise
+.venv/
+**/.venv/
+dist/
+**/dist/
 node_modules/
 **/node_modules/
+playwright-report/
+**/playwright-report/
+test-results/
+**/test-results/
+test-reports/
+.vinext/
+**/.vinext/
+.wrangler/
+**/.wrangler/
 .git/
 .DS_Store
 Thumbs.db

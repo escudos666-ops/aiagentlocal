@@ -1,0 +1,45 @@
+﻿{
+  "name": "Agentics - Chat Router V2",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agentics-chat-v2",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "Webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\n\nconst message = body.message || body.prompt || 'Say hello from Agentics.';\nconst model = body.model || 'agentics-assistant:latest';\n\nconst payload = {\n  model,\n  prompt: message,\n  stream: false,\n  options: {\n    temperature: Number(body.temperature || 0.4),\n    num_ctx: Number(body.num_ctx || 4096),\n    num_predict: Number(body.num_predict || 512)\n  }\n};\n\nconst res = await fetch('http://ollama:11434/api/generate', {\n  method: 'POST',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify(payload)\n});\n\nconst text = await res.text();\n\nif (!res.ok) {\n  return [{ json: { ok: false, status: res.status, error: text } }];\n}\n\nconst data = JSON.parse(text);\n\nreturn [{\n  json: {\n    ok: true,\n    source: 'n8n-agentics-chat-v2',\n    model: data.model,\n    response: data.response,\n    eval_count: data.eval_count,\n    total_duration: data.total_duration\n  }\n}];"
+      },
+      "id": "AskOllama",
+      "name": "Ask Ollama",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [300, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Ask Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

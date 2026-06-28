@@ -1,0 +1,143 @@
+﻿{
+  "name": "Agentics - Shipment GraphQL line smoke test",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { query: `{ allShipmentLines(first: 10, orderBy: ID_DESC) { nodes { id documentId productCode productDescription quantity serialNumber shipmentRef customerPo } } }` } }];"
+      },
+      "id": "build-graphql-query",
+      "name": "Build GraphQL Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:5000/graphql",
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "={{ $json.query }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "postgraphile-line-test",
+      "name": "PostGraphile Line Test",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\nif (response.errors) {\n  throw new Error('GraphQL errors: ' + JSON.stringify(response.errors));\n}\n\nconst nodes = response?.data?.allShipmentLines?.nodes || [];\nconst line = nodes.find(x => x.productCode === 'ADM-TEST-001' || x.serialNumber === 'SN-TEST-001');\n\nif (!line) {\n  throw new Error('Expected test shipment line not found. Response: ' + JSON.stringify(response));\n}\n\nreturn [{\n  json: {\n    ok: true,\n    message: `Shipment GraphQL line test OK\\nproductCode: ${line.productCode}\\ndescription: ${line.productDescription}\\nserial: ${line.serialNumber}\\nshipmentRef: ${line.shipmentRef}\\ncustomerPo: ${line.customerPo}`,\n    line\n  }\n}];"
+      },
+      "id": "validate-line-result",
+      "name": "Validate Line Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://waha:3000/api/sendText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "change-this-waha-api-key"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "session",
+              "value": "default"
+            },
+            {
+              "name": "chatId",
+              "value": "31613717081@c.us"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "waha-confirmation",
+      "name": "WAHA Confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1020, 0]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Build GraphQL Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build GraphQL Query": {
+      "main": [
+        [
+          {
+            "node": "PostGraphile Line Test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PostGraphile Line Test": {
+      "main": [
+        [
+          {
+            "node": "Validate Line Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Line Result": {
+      "main": [
+        [
+          {
+            "node": "WAHA Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

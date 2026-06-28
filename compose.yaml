@@ -1,0 +1,32 @@
+services:
+  personal-assistant-webui:
+    image: agentics-personal-assistant-webui
+    build:
+      context: personal-assistant-site
+      dockerfile: ./Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 8787
+      OPEN_WEBUI_INTERNAL_URL: http://open-webui:8080
+      OLLAMA_INTERNAL_URL: http://ollama:11434
+      AGENTICS_MCP_INTERNAL_URL: http://agentics-mcp:8766
+      N8N_INTERNAL_URL: http://n8n:5678
+      MINIO_INTERNAL_URL: http://minio:9000
+      GRAFANA_INTERNAL_URL: http://grafana:3000
+      PROMETHEUS_INTERNAL_URL: http://prometheus:9090
+      LOKI_INTERNAL_URL: http://loki:3100
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_RESPONSES_MODEL: ${OPENAI_RESPONSES_MODEL:-gpt-5.4-mini}
+      PIPEDREAM_MCP_SERVER_URL: ${PIPEDREAM_MCP_SERVER_URL:-https://remote.mcp.pipedream.net}
+      PIPEDREAM_MCP_APP_SLUG: ${PIPEDREAM_MCP_APP_SLUG:-}
+      PIPEDREAM_MCP_AUTHORIZATION: ${PIPEDREAM_MCP_AUTHORIZATION:-}
+    ports:
+      - "127.0.0.1:8787:8787"
+    networks:
+      - agentnet
+    restart: unless-stopped
+
+networks:
+  agentnet:
+    external: true
+    name: agentics_agentnet

@@ -1,0 +1,12 @@
+﻿services:
+  open-webui:
+    extra_hosts:
+      - "model-runner.docker.internal:host-gateway"
+      - "host.docker.internal:host-gateway"
+    environment:
+      ENABLE_OPENAI_API: "true"
+      OPENAI_API_BASE_URL: "http://model-runner.docker.internal:12434/engines/v1"
+      OPENAI_API_BASE_URLS: "http://model-runner.docker.internal:12434/engines/v1"
+      OPENAI_API_KEY: "dmr-local"
+      OPENAI_API_KEYS: "dmr-local"
+      TASK_MODEL_EXTERNAL: "docker.io/ai/llama3.2:latest"

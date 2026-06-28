@@ -5,22 +5,12 @@ Orchestrates all sub-agents and tools
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 import httpx
 import json
 from typing import Optional, Dict, Any
 from datetime import datetime
 import logging
-
-app = FastAPI(title="Martin's Personal Agent", version="1.0.0")
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +22,7 @@ SERVICES = {
     "openwebui": "http://openwebui:3000",
     "n8n": "http://n8n:5678",
     "browser_use": "http://browser-use-webui:7788",
-    "postgres": "postgresql://admin:admin@postgres:5432/agentdb",
+    "postgres": "postgresql://admin:[REDACTED]@postgres:5432/agentdb",
     "redis": "redis://redis:6379",
     "minio": "http://minio:9000",
     "chroma": "http://chroma:8000",
@@ -58,18 +48,17 @@ agent_state = {
 }
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize PA and check sub-agents on startup"""
+# Lifespan context manager for startup/shutdown
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     logger.info("Personal Agent starting up...")
     
     # Check service health
     for service_name, service_url in SERVICES.items():
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
-                if service_name == "postgres":
-                    logger.info(f"✓ {service_name} configured: {service_url}")
-                elif service_name == "redis":
+                if service_name in ["postgres", "redis"]:
                     logger.info(f"✓ {service_name} configured: {service_url}")
                 else:
                     response = await client.get(f"{service_url}/api/health", timeout=5.0)
@@ -81,6 +70,21 @@ async def startup_event():
             logger.warning(f"⚠ {service_name} not available yet: {str(e)}")
     
     logger.info("Personal Agent ready!")
+    yield
+    # Shutdown
+    logger.info("Personal Agent shutting down...")
+
+
+app = FastAPI(title="Martin's Personal Agent", version="1.0.0", lifespan=lifespan)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")

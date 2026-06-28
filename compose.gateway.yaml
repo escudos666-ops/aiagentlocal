@@ -1,0 +1,45 @@
+services:
+  gateway:
+    image: nginx:alpine
+    container_name: agentics-gateway
+    ports:
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:8088:8088"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - agentics_agentnet
+      - agentics_default
+      - dmr_default
+    restart: unless-stopped
+
+  adminer:
+    image: adminer
+    container_name: adminer
+    ports:
+      - "127.0.0.1:8081:8080"
+    networks:
+      - agentics_agentnet
+      - agentics_default
+    restart: unless-stopped
+
+  n8n-imports:
+    image: nginx:alpine
+    container_name: n8n-imports
+    ports:
+      - "127.0.0.1:8898:80"
+    volumes:
+      - ./n8n-imports:/usr/share/nginx/html:ro
+    networks:
+      - agentics_agentnet
+    restart: unless-stopped
+
+networks:
+  agentics_agentnet:
+    external: true
+  agentics_default:
+    external: true
+  dmr_default:
+    external: true

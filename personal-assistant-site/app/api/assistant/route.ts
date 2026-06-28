@@ -57,7 +57,7 @@ function routeErrorMessage(error: unknown) {
   }
 
   if (combined.includes("no such table")) {
-    return "The assistant tables are unavailable. Generate and deploy the Drizzle migration so Sites can apply it to D1.";
+    return "Local preview is using sample data until the generated Drizzle migration is applied to the Sites D1 database.";
   }
 
   return message;
@@ -113,6 +113,170 @@ function getAgendaDefaults(text: string) {
   return { startTime, endTime };
 }
 
+function fallbackId() {
+  return -Date.now();
+}
+
+function fallbackTimestamp() {
+  return new Date().toISOString();
+}
+
+function fallbackTask(title: string, priority: Priority = "medium", project = "Inbox", dueDate: string | null = null) {
+  const now = fallbackTimestamp();
+  return {
+    id: fallbackId(),
+    title,
+    status: "open" as TaskStatus,
+    priority,
+    project,
+    dueDate,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function fallbackNote(title: string, body = "", kind: NoteKind = "general") {
+  const now = fallbackTimestamp();
+  return {
+    id: fallbackId(),
+    title,
+    body,
+    kind,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function fallbackAgenda(label: string, startTime = "09:00", endTime = "10:00", tone: AgendaTone = "deep") {
+  const now = fallbackTimestamp();
+  return {
+    id: fallbackId(),
+    label,
+    startTime,
+    endTime,
+    tone,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function localPreviewResponse(body: Record<string, unknown>, error: unknown) {
+  return Response.json(
+    {
+      ...body,
+      persistence: "local-preview",
+      warning: routeErrorMessage(error),
+    },
+    { status: 202 }
+  );
+}
+
+function fallbackPostResponse(payload: PostPayload | undefined, error: unknown) {
+  if (!payload) {
+    return null;
+  }
+
+  if (payload.type === "task") {
+    const title = cleanText(payload.title);
+    return title
+      ? localPreviewResponse(
+          {
+            item: fallbackTask(
+              title,
+              isPriority(payload.priority) ? payload.priority : "medium",
+              cleanText(payload.project) || "Inbox",
+              cleanText(payload.dueDate) || null
+            ),
+          },
+          error
+        )
+      : null;
+  }
+
+  if (payload.type === "note") {
+    const title = cleanText(payload.title);
+    return title
+      ? localPreviewResponse(
+          {
+            item: fallbackNote(title, cleanText(payload.body), isNoteKind(payload.kind) ? payload.kind : "general"),
+          },
+          error
+        )
+      : null;
+  }
+
+  if (payload.type === "agenda") {
+    const label = cleanText(payload.label);
+    return label
+      ? localPreviewResponse(
+          {
+            item: fallbackAgenda(
+              label,
+              cleanText(payload.startTime) || "09:00",
+              cleanText(payload.endTime) || "10:00",
+              isAgendaTone(payload.tone) ? payload.tone : "deep"
+            ),
+          },
+          error
+        )
+      : null;
+  }
+
+  if (payload.type === "capture") {
+    const text = cleanText(payload.text);
+    if (!text) {
+      return null;
+    }
+
+    const createdType = classifyCapture(text);
+    const capture = {
+      id: fallbackId(),
+      rawText: text,
+      interpretedAs: createdType,
+      createdAt: fallbackTimestamp(),
+    };
+
+    if (createdType === "note") {
+      return localPreviewResponse(
+        {
+          capture,
+          createdType,
+          item: fallbackNote(text.replace(/^note:\s*/i, "").slice(0, 96), text),
+        },
+        error
+      );
+    }
+
+    if (createdType === "agenda") {
+      const defaults = getAgendaDefaults(text);
+      return localPreviewResponse(
+        {
+          capture,
+          createdType,
+          item: fallbackAgenda(
+            text,
+            defaults.startTime,
+            defaults.endTime,
+            text.toLowerCase().includes("meeting") ? "meeting" : "admin"
+          ),
+        },
+        error
+      );
+    }
+
+    return localPreviewResponse(
+      {
+        capture,
+        createdType,
+        item: fallbackTask(text, text.toLowerCase().includes("urgent") ? "high" : "medium"),
+      },
+      error
+    );
+  }
+
+  return null;
+}
+
 export async function GET(request: Request) {
   try {
     const ownerEmail = getOwnerEmail(request);
@@ -164,8 +328,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let payload: PostPayload | undefined;
+
   try {
-    const payload = (await request.json()) as PostPayload;
+    payload = (await request.json()) as PostPayload;
     const ownerEmail = getOwnerEmail(request);
     const db = getDb();
 
@@ -294,13 +460,20 @@ export async function POST(request: Request) {
 
     return Response.json({ error: "Unsupported assistant payload." }, { status: 400 });
   } catch (error) {
+    const fallback = fallbackPostResponse(payload, error);
+    if (fallback) {
+      return fallback;
+    }
+
     return Response.json({ error: routeErrorMessage(error) }, { status: 500 });
   }
 }
 
 export async function PATCH(request: Request) {
+  let payload: PatchPayload | undefined;
+
   try {
-    const payload = (await request.json()) as PatchPayload;
+    payload = (await request.json()) as PatchPayload;
     const ownerEmail = getOwnerEmail(request);
 
     if (payload.type !== "task" || typeof payload.id !== "number") {
@@ -337,6 +510,19 @@ export async function PATCH(request: Request) {
 
     return Response.json({ item });
   } catch (error) {
+    if (payload?.type === "task" && typeof payload.id === "number") {
+      return localPreviewResponse(
+        {
+          item: {
+            id: payload.id,
+            status: isTaskStatus(payload.status) ? payload.status : undefined,
+            updatedAt: fallbackTimestamp(),
+          },
+        },
+        error
+      );
+    }
+
     return Response.json({ error: routeErrorMessage(error) }, { status: 500 });
   }
 }

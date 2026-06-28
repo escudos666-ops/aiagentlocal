@@ -1,0 +1,49 @@
+﻿{
+  "name": "Agentics - Status Tool",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "agentics-status",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "7e7e4d1f-0a1d-4a7e-a001-agenticsstatus1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [420, 300],
+      "webhookId": "agentics-status"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"ok\": true,\n  \"tool\": \"agentics-status\",\n  \"message\": \"Agentics n8n tool bridge is reachable\",\n  \"services\": {\n    \"n8n\": \"OK\",\n    \"ollama\": \"OK\",\n    \"openwebui\": \"OK\",\n    \"postgres\": \"OK\",\n    \"waha\": \"OK\",\n    \"tika\": \"OK\",\n    \"chroma\": \"OK\",\n    \"minio\": \"OK\"\n  },\n  \"timestamp\": \"{{ $now }}\"\n}",
+        "options": {}
+      },
+      "id": "9a8d5a2b-9b1d-4a7e-a002-agenticsstatus2",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [700, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "agentics-status-v1"
+}
